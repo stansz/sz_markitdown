@@ -16,6 +16,7 @@ import { DocxConverter } from '../converters/DocxConverter';
 import { PdfConverter } from '../converters/PdfConverter';
 import { XlsxConverter } from '../converters/XlsxConverter';
 import { PptxConverter } from '../converters/PptxConverter';
+import { OutlookMsgConverter } from '../converters/OutlookMsgConverter';
 import { detectFileType } from '../utils/fileDetection';
 
 /**
@@ -43,6 +44,7 @@ export class MarkItDown {
 
     // Register converters in reverse order (most specific first)
     // Later registrations are tried first (higher priority)
+    this.registerConverter(new OutlookMsgConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
     this.registerConverter(new PptxConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
     this.registerConverter(new XlsxConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
     this.registerConverter(new PdfConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);

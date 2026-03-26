@@ -7,6 +7,11 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  resolve: {
+    alias: {
+      buffer: 'buffer',
+    },
+  },
   build: {
     target: 'esnext',
     rollupOptions: {
