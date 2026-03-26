@@ -212,7 +212,7 @@ function App() {
       <footer className="border-t bg-card/50">
         <div className="container mx-auto px-4 py-4 text-center">
           <p className="text-sm text-muted-foreground">
-            Browser-based version of{' '}
+            Stan's browser-based version of{' '}
             <a
               href="https://github.com/microsoft/markitdown"
               target="_blank"
