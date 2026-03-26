@@ -51,6 +51,12 @@ MarkItDown Browser exists to provide a simple, privacy-focused tool for converti
 - Maintaining code quality and TypeScript type safety
 
 **Recent Changes:**
+- **Added Outlook .msg converter** (current): Implemented OutlookMsgConverter using @kenjiuno/msgreader library to support conversion of Outlook .msg email files to Markdown.
+  - Created `src/converters/OutlookMsgConverter.ts` with full email metadata extraction (subject, sender, recipients, date, body)
+  - Registered converter with PRIORITY_SPECIFIC_FILE_FORMAT in MarkItDown class
+  - Added `@kenjiuno/msgreader` (v1.28.0) and `buffer` dependencies to package.json
+  - Handles both HTML and plain text email bodies
+
 - **Fixed PDF.js worker loading** (2025-03-25): Changed from CDN-based worker to locally bundled worker using Vite's worker import. This resolves CORS/network errors when converting PDF files.
   - Modified `src/converters/PdfConverter.ts` to import `pdfjs-dist/build/pdf.worker.mjs?worker&url`
   - Set `GlobalWorkerOptions.workerSrc` to the bundled worker URL
@@ -83,6 +89,7 @@ src/
 ├── converters/         # Document format converters
 │   ├── DocxConverter.ts    # DOCX → Markdown (mammoth.js)
 │   ├── HtmlConverter.ts    # HTML → Markdown (marked.js)
+│   ├── OutlookMsgConverter.ts  # MSG → Markdown (@kenjiuno/msgreader)
 │   ├── PdfConverter.ts     # PDF → Markdown (pdf.js)
 │   ├── PptxConverter.ts    # PPTX → Markdown (pptx2json)
 │   └── XlsxConverter.ts    # XLSX → Markdown (xlsx)
@@ -131,8 +138,9 @@ src/
   - `pdfjs-dist` (v4.4.168) for PDF text extraction
   - `mammoth` (v1.8.0) for DOCX conversion
   - `marked` (v12.0.0) for HTML to Markdown
+  - `@kenjiuno/msgreader` (v1.28.0) for Outlook .msg conversion
   - `xlsx` (v0.20.3) for spreadsheet conversion
-  - `jszip` (v3.10.1) for archive handling
+  - `jszip` (v3.10.1) for PPTX parsing and archive handling
 - **Icons**: lucide-react
 
 **Development Setup:**
@@ -152,6 +160,7 @@ npm run preview  # Preview production build
 **Dependencies:**
 - Production: See `package.json` for full list
 - All dependencies are npm packages except xlsx which uses CDN tarball
+- `buffer` package provides Node.js Buffer polyfill for browser environment (required by @kenjiuno/msgreader)
 - pdfjs-dist worker is bundled via Vite with `?worker&url` import
 
 **Tool Usage Patterns:**

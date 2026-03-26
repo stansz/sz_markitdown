@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { FileUpload } from './components/FileUpload'
 import { FileList } from './components/FileList'
 import { MarkdownPreview } from './components/MarkdownPreview'
@@ -23,6 +23,8 @@ function App() {
     }
     return false
   })
+  const [showPrivacyPopover, setShowPrivacyPopover] = useState(false)
+  const footerPopoverRef = useRef<HTMLDivElement>(null)
 
   // Handle dark mode class on document
   useEffect(() => {
@@ -33,6 +35,20 @@ function App() {
       root.classList.remove('dark')
     }
   }, [darkMode])
+
+  // Close popover when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (footerPopoverRef.current && !footerPopoverRef.current.contains(event.target as Node)) {
+        setShowPrivacyPopover(false)
+      }
+    }
+
+    if (showPrivacyPopover) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showPrivacyPopover])
 
   const handleFilesSelected = async (selectedFiles: File[]) => {
     const newFiles: FileResult[] = selectedFiles.map(file => ({
@@ -97,11 +113,11 @@ function App() {
             <div className="flex items-center gap-4">
               <div className="relative">
                 <div className="p-3 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/20">
-                  <svg 
-                    className="w-8 h-8 text-primary" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor" 
+                  <svg
+                    className="w-8 h-8 text-primary"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
                     strokeWidth={1.5}
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -118,7 +134,7 @@ function App() {
                 </p>
               </div>
             </div>
-            
+
             {/* Dark mode toggle */}
             <button
               onClick={() => setDarkMode(!darkMode)}
@@ -144,7 +160,7 @@ function App() {
           {/* Left Panel - Upload and File List */}
           <div className="lg:col-span-2 space-y-5">
             <FileUpload onFilesSelected={handleFilesSelected} />
-            
+
             {files.length > 0 && (
               <FileList
                 files={files}
@@ -210,19 +226,63 @@ function App() {
       </main>
 
       <footer className="border-t bg-card/50">
-        <div className="container mx-auto px-4 py-4 text-center">
-          <p className="text-sm text-muted-foreground">
-            Stan's browser-based version of{' '}
-            <a
-              href="https://github.com/microsoft/markitdown"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              Microsoft MarkItDown
-            </a>
-            
-          </p>
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Stan's browser-based version of{' '}
+              <a
+                href="https://github.com/microsoft/markitdown"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline font-medium"
+              >
+                Microsoft MarkItDown
+              </a>
+            </p>
+
+            {/* Privacy indicator in footer */}
+            <div className="relative" ref={footerPopoverRef}>
+              <button
+                onClick={() => setShowPrivacyPopover(!showPrivacyPopover)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/5 hover:bg-primary/10 border border-primary/10 hover:border-primary/20 transition-all duration-300 group"
+                aria-label="Privacy information"
+              >
+                <div className="w-2 h-2 rounded-full bg-green-500 group-hover:bg-green-400 transition-colors" />
+                <span className="text-xs font-medium text-primary/80 group-hover:text-primary">
+                  100% Private
+                </span>
+                <svg className="w-3 h-3 text-primary/60 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+
+              {/* Popover */}
+              {showPrivacyPopover && (
+                <div className="absolute bottom-full right-0 mb-3 w-72 z-50 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="p-4 rounded-lg bg-popover border border-border shadow-lg backdrop-blur-md">
+                    <div className="absolute -bottom-1.5 right-8 w-3 h-3 rotate-45 bg-popover border-r border-b border-border" />
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                        <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Fully Client-Side
+                      </h4>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        All conversions happen locally in your browser. Your files never leave your device.
+                      </p>
+                      <div className="flex items-center gap-1.5 pt-1">
+                        <svg className="w-3 h-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+                        </svg>
+                        <span className="text-xs text-muted-foreground">Works offline</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </footer>
     </div>
