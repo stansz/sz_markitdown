@@ -11,6 +11,7 @@ const EXTENSION_TO_MIME: Record<string, string> = {
   '.xls': 'application/vnd.ms-excel',
   '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   '.pdf': 'application/pdf',
+  '.msg': 'application/vnd.ms-outlook',
   '.txt': 'text/plain',
   '.csv': 'text/csv',
   '.json': 'application/json',
