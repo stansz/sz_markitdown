@@ -4,6 +4,7 @@ import type {
   ConverterRegistration,
   MarkItDownOptions,
   StreamInfo,
+  PdfConversionMode,
 } from './types';
 import {
   PRIORITY_SPECIFIC_FILE_FORMAT,
@@ -14,6 +15,7 @@ import {
 import { HtmlConverter } from '../converters/HtmlConverter';
 import { DocxConverter } from '../converters/DocxConverter';
 import { PdfConverter } from '../converters/PdfConverter';
+import { ScientificPdfConverter } from '../converters/ScientificPdfConverter';
 import { XlsxConverter } from '../converters/XlsxConverter';
 import { PptxConverter } from '../converters/PptxConverter';
 import { OutlookMsgConverter } from '../converters/OutlookMsgConverter';
@@ -26,8 +28,10 @@ import { detectFileType } from '../utils/fileDetection';
 export class MarkItDown {
   private converters: ConverterRegistration[] = [];
   private builtinsEnabled = false;
+  private pdfConversionMode: PdfConversionMode = 'standard';
 
   constructor(options?: MarkItDownOptions) {
+    this.pdfConversionMode = options?.pdfConversionMode || 'standard';
     if (options?.enableBuiltins !== false) {
       this.enableBuiltins();
     }
@@ -47,7 +51,14 @@ export class MarkItDown {
     this.registerConverter(new OutlookMsgConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
     this.registerConverter(new PptxConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
     this.registerConverter(new XlsxConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
-    this.registerConverter(new PdfConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
+    
+    // Register ScientificPdfConverter if in scientific mode, otherwise use standard PdfConverter
+    if (this.pdfConversionMode === 'scientific') {
+      this.registerConverter(new ScientificPdfConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
+    } else {
+      this.registerConverter(new PdfConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
+    }
+    
     this.registerConverter(new DocxConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
     this.registerConverter(new HtmlConverter(), PRIORITY_GENERIC_FILE_FORMAT);
 
@@ -133,5 +144,15 @@ export class MarkItDown {
    */
   getRegisteredConverters(): string[] {
     return this.converters.map(r => r.converter.constructor.name);
+  }
+
+  /**
+   * Update PDF conversion mode and re-register converters
+   */
+  setPdfConversionMode(mode: PdfConversionMode): void {
+    this.pdfConversionMode = mode;
+    this.converters = []; // Clear existing converters
+    this.builtinsEnabled = false;
+    this.enableBuiltins(); // Re-register with new mode
   }
 }

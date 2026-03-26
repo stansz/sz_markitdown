@@ -55,11 +55,17 @@ export const PRIORITY_SPECIFIC_FILE_FORMAT = 0.0;
 export const PRIORITY_GENERIC_FILE_FORMAT = 10.0;
 
 /**
+ * Conversion mode for PDF files
+ */
+export type PdfConversionMode = 'standard' | 'scientific';
+
+/**
  * Options for MarkItDown initialization
  */
 export interface MarkItDownOptions {
   enableBuiltins?: boolean;
   llmClient?: LLMClient;
+  pdfConversionMode?: PdfConversionMode;
 }
 
 /**

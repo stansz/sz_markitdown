@@ -5,6 +5,7 @@ import { MarkdownPreview } from './components/MarkdownPreview'
 import { ActionButtons } from './components/ActionButtons'
 import { MarkItDown } from './core/MarkItDown'
 import type { DocumentConverterResult } from './core/types'
+import { hasWebGPUSupport } from './utils/webgpuDetection'
 
 interface FileResult {
   file: File
@@ -24,6 +25,8 @@ function App() {
     return false
   })
   const [showPrivacyPopover, setShowPrivacyPopover] = useState(false)
+  const [scientificMode, setScientificMode] = useState(false)
+  const [webgpuSupported, setWebgpuSupported] = useState(false)
   const footerPopoverRef = useRef<HTMLDivElement>(null)
 
   // Handle dark mode class on document
@@ -49,6 +52,18 @@ function App() {
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [showPrivacyPopover])
+
+  // Detect WebGPU support on mount
+  useEffect(() => {
+    setWebgpuSupported(hasWebGPUSupport());
+  }, []);
+
+  // Update converter when scientific mode changes
+  useEffect(() => {
+    converter.setPdfConversionMode(
+      scientificMode ? 'scientific' : 'standard'
+    );
+  }, [scientificMode, converter]);
 
   const handleFilesSelected = async (selectedFiles: File[]) => {
     const newFiles: FileResult[] = selectedFiles.map(file => ({
@@ -159,7 +174,12 @@ function App() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Left Panel - Upload and File List */}
           <div className="lg:col-span-2 space-y-5">
-            <FileUpload onFilesSelected={handleFilesSelected} />
+            <FileUpload
+              onFilesSelected={handleFilesSelected}
+              scientificMode={scientificMode}
+              onScientificModeChange={setScientificMode}
+              webgpuSupported={webgpuSupported}
+            />
 
             {files.length > 0 && (
               <FileList

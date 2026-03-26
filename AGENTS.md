@@ -51,7 +51,22 @@ MarkItDown Browser exists to provide a simple, privacy-focused tool for converti
 - Maintaining code quality and TypeScript type safety
 
 **Recent Changes:**
-- **Added Outlook .msg converter** (current): Implemented OutlookMsgConverter using @kenjiuno/msgreader library to support conversion of Outlook .msg email files to Markdown.
+- **Added Scientific Paper Mode** (current): Enhanced PDF conversion for scientific and peer-reviewed papers using heuristic-based layout analysis.
+  - Created `src/converters/ScientificPdfConverter.ts` with advanced heuristics for:
+    - Multi-column layout detection using density analysis
+    - Reading order determination (top-to-bottom, left-to-right)
+    - Paragraph detection based on line spacing and indentation
+    - List detection (bullets, numbered lists, Roman numerals)
+    - Table row detection using alignment patterns
+    - Figure caption detection
+    - Horizontal line separators
+    - Heading detection using font size, position, and text patterns
+  - Updated `MarkItDown` class to support PDF conversion mode selection
+  - Added global "Scientific Paper Mode" toggle in FileUpload component
+  - **Note**: This is a heuristic-based implementation (not AI-powered). It works well for well-formatted scientific papers but may not match the quality of docling-sdk (which requires Python and cannot run in browser).
+  - No WebGPU required - works in all modern browsers
+
+- **Added Outlook .msg converter**: Implemented OutlookMsgConverter using @kenjiuno/msgreader library to support conversion of Outlook .msg email files to Markdown.
   - Created `src/converters/OutlookMsgConverter.ts` with full email metadata extraction (subject, sender, recipients, date, body)
   - Registered converter with PRIORITY_SPECIFIC_FILE_FORMAT in MarkItDown class
   - Added `@kenjiuno/msgreader` (v1.28.0) and `buffer` dependencies to package.json
@@ -91,6 +106,7 @@ src/
 │   ├── HtmlConverter.ts    # HTML → Markdown (marked.js)
 │   ├── OutlookMsgConverter.ts  # MSG → Markdown (@kenjiuno/msgreader)
 │   ├── PdfConverter.ts     # PDF → Markdown (pdf.js)
+│   ├── ScientificPdfConverter.ts  # PDF → Markdown (heuristic layout analysis)
 │   ├── PptxConverter.ts    # PPTX → Markdown (pptx2json)
 │   └── XlsxConverter.ts    # XLSX → Markdown (xlsx)
 ├── core/               # Core application logic
@@ -98,6 +114,7 @@ src/
 │   └── types.ts         # TypeScript interfaces
 ├── utils/              # Utility functions
 │   ├── fileDetection.ts # MIME type and extension matching
+│   ├── webgpuDetection.ts # WebGPU support detection
 │   └── llmClient.ts     # LLM integration (future)
 └── lib/
     └── utils.ts         # General utilities
@@ -136,6 +153,7 @@ src/
 - **Styling**: Tailwind CSS 3.4, shadcn/ui components
 - **Converters**:
   - `pdfjs-dist` (v4.4.168) for PDF text extraction
+  - Advanced heuristic-based layout analysis for scientific PDFs (no external ML dependencies)
   - `mammoth` (v1.8.0) for DOCX conversion
   - `marked` (v12.0.0) for HTML to Markdown
   - `@kenjiuno/msgreader` (v1.28.0) for Outlook .msg conversion
