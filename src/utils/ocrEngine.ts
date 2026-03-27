@@ -27,8 +27,6 @@ export class OcrEngine {
 
   /**
    * Initialize the OCR engine with specified language
-   * @param language - Tesseract language code (e.g., 'eng', 'fra', 'deu')
-   * @param onProgress - Optional callback for initialization progress
    */
   async initialize(
     language: string = 'eng',
@@ -38,41 +36,29 @@ export class OcrEngine {
       return;
     }
 
-    // Terminate existing worker if language changed
     if (this.worker && this.currentLanguage !== language) {
       await this.terminate();
     }
 
     this.currentLanguage = language;
-
     onProgress?.({ status: 'Loading Tesseract worker...', progress: 0 });
 
-    // Add a timeout to prevent hanging if Tesseract worker fails to initialize
-    const timeoutMs = 30000; // 30 seconds
     try {
-      this.worker = await Promise.race([
-        Tesseract.createWorker(language, 1, {
-          logger: (m: LoggerMessage) => {
-            if (m.status === 'recognizing text') {
-              onProgress?.({
-                status: 'Recognizing text...',
-                progress: m.progress * 100,
-              });
-            } else if (m.status === 'loading language traineddata') {
-              onProgress?.({
-                status: 'Loading language data...',
-                progress: m.progress * 100,
-              });
-            }
-          },
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error('Tesseract initialization timeout')),
-            timeoutMs
-          )
-        ),
-      ]);
+      this.worker = await Tesseract.createWorker(language, 1, {
+        logger: (m: LoggerMessage) => {
+          if (m.status === 'recognizing text') {
+            onProgress?.({
+              status: 'Recognizing text...',
+              progress: m.progress * 100,
+            });
+          } else if (m.status === 'loading language traineddata') {
+            onProgress?.({
+              status: 'Loading language data...',
+              progress: m.progress * 100,
+            });
+          }
+        },
+      });
     } catch (error) {
       throw new Error(
         `Failed to initialize OCR engine: ${
@@ -87,46 +73,33 @@ export class OcrEngine {
 
   /**
    * Recognize text from an image
-   * @param image - Canvas or image element to OCR
-   * @returns Array of OCR results with text, confidence, and bounding boxes
    */
   async recognize(image: HTMLCanvasElement | HTMLImageElement): Promise<OcrResult[]> {
     if (!this.worker) {
       throw new Error('OCR engine not initialized. Call initialize() first.');
     }
 
-    // Add a timeout to prevent hanging on a single recognition
-    const timeoutMs = 60000; // 60 seconds per region (should be plenty)
-    try {
-      const { withTimeout } = await import('../lib/utils');
-      const { data } = await withTimeout(
-        this.worker.recognize(image),
-        timeoutMs,
-        'OCR recognition timed out'
-      );
-      return data.words.map((word: Tesseract.Word) => ({
-        text: word.text,
-        confidence: word.confidence,
-        bbox: {
-          x0: word.bbox.x0,
-          y0: word.bbox.y0,
-          x1: word.bbox.x1,
-          y1: word.bbox.y1,
-        },
-      }));
-    } catch (e) {
-      if (e instanceof Error && e.message.includes('timed out')) {
-        console.warn('OCR recognition timed out, skipping region');
-        return []; // Return empty result for this region
-      }
-      throw e;
+    const { data } = await this.worker.recognize(image);
+    
+    console.log(`[OcrEngine] OCR result: ${data.words.length} words, confidence: ${data.confidence.toFixed(2)}`);
+    if (data.words.length > 0) {
+      console.log(`[OcrEngine] First few words:`, data.words.slice(0, 5).map((w: Tesseract.Word) => w.text).join(' | '));
     }
+    
+    return data.words.map((word: Tesseract.Word) => ({
+      text: word.text,
+      confidence: word.confidence,
+      bbox: {
+        x0: word.bbox.x0,
+        y0: word.bbox.y0,
+        x1: word.bbox.x1,
+        y1: word.bbox.y1,
+      },
+    }));
   }
 
   /**
    * Recognize text with detailed paragraph and line information
-   * @param image - Canvas or image element to OCR
-   * @returns Detailed OCR result with paragraphs, lines, and words
    */
   async recognizeDetailed(image: HTMLCanvasElement | HTMLImageElement): Promise<{
     text: string;
@@ -181,16 +154,10 @@ export class OcrEngine {
     };
   }
 
-  /**
-   * Check if the engine is initialized
-   */
   isInitialized(): boolean {
     return this.initialized && this.worker !== null;
   }
 
-  /**
-   * Get current language
-   */
   getLanguage(): string {
     return this.currentLanguage;
   }
@@ -207,14 +174,8 @@ export class OcrEngine {
   }
 }
 
-/**
- * Singleton OCR engine instance for shared use
- */
 let sharedEngine: OcrEngine | null = null;
 
-/**
- * Get or create shared OCR engine instance
- */
 export function getSharedOcrEngine(): OcrEngine {
   if (!sharedEngine) {
     sharedEngine = new OcrEngine();
@@ -222,9 +183,6 @@ export function getSharedOcrEngine(): OcrEngine {
   return sharedEngine;
 }
 
-/**
- * Terminate shared OCR engine
- */
 export async function terminateSharedOcrEngine(): Promise<void> {
   if (sharedEngine) {
     await sharedEngine.terminate();

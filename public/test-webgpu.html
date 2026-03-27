@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGPU ONNX Runtime Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 20px 0;
+            border: 1px solid #334155;
+        }
+        h1 { color: #60a5fa; margin-bottom: 10px; }
+        h2 { color: #a78bfa; margin-top: 0; }
+        .status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .success { background: #064e3b; color: #6ee7b7; border: 1px solid #047857; }
+        .error { background: #7f1d1d; color: #fca5a5; border: 1px solid #991b1b; }
+        .warning { background: #78350f; color: #fcd34d; border: 1px solid #92400e; }
+        .info { background: #1e3a8a; color: #93c5fd; border: 1px solid #1d4ed8; }
+        pre {
+            background: #0f172a;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            margin: 10px 5px 10px 0;
+        }
+        button:hover { background: #2563eb; }
+        button:disabled { background: #64748b; cursor: not-allowed; }
+        .test-results { margin-top: 20px; }
+        .log-entry {
+            padding: 4px 8px;
+            margin: 2px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-info { background: #1e3a8a; }
+        .log-success { background: #064e3b; }
+        .log-error { background: #7f1d1d; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔬 WebGPU ONNX Runtime Test</h1>
+        <p>This page tests the WebGPU configuration for ONNX Runtime in the MarkItDown project.</p>
+    </div>
+
+    <div class="card">
+        <h2>🌐 Browser Capabilities</h2>
+        <div id="browser-info"></div>
+    </div>
+
+    <div class="card">
+        <h2>📦 ONNX Runtime Configuration</h2>
+        <div id="ort-config"></div>
+    </div>
+
+    <div class="card">
+        <h2>🧪 Run Tests</h2>
+        <button id="test-wasm" onclick="testWASM()">Test WASM Backend</button>
+        <button id="test-webgpu" onclick="testWebGPU()">Test WebGPU Backend</button>
+        <button id="test-both" onclick="testBoth()">Test Both Backends</button>
+        <div class="test-results" id="test-results"></div>
+    </div>
+
+    <div class="card">
+        <h2>📋 Test Log</h2>
+        <div id="log-container"></div>
+    </div>
+
+    <script type="module">
+        // Import ONNX Runtime Web with WebGPU support
+        import * as ort from '/onnxruntime/ort.webgpu.min.mjs';
+
+        // Store reference globally
+        window.ort = ort;
+
+        // Log helper
+        function log(message, type = 'info') {
+            const container = document.getElementById('log-container');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+            console.log(`[${type.toUpperCase()}]`, message);
+        }
+
+        // Display browser info
+        async function displayBrowserInfo() {
+            const info = document.getElementById('browser-info');
+            const hasWebGPU = !!(navigator.gpu);
+            
+            let gpuAdapterStatus = 'Not Available';
+            if (hasWebGPU) {
+                const adapter = await navigator.gpu.requestAdapter();
+                gpuAdapterStatus = adapter ? 'Available' : 'Not Available';
+            }
+            
+            info.innerHTML = `
+                <div class="status ${hasWebGPU ? 'success' : 'error'}">
+                    ${hasWebGPU ? '✅' : '❌'} WebGPU Support: ${hasWebGPU ? 'Yes' : 'No'}
+                </div>
+                <div class="status info">
+                    ℹ️ User Agent: ${navigator.userAgent.substring(0, 80)}...
+                </div>
+                ${hasWebGPU ? `
+                    <div class="status info">
+                        ℹ️ GPU Adapter: ${gpuAdapterStatus}
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        // Display ONNX Runtime config
+        function displayORTConfig() {
+            const config = document.getElementById('ort-config');
+            const env = window.ort.env;
+            
+            let html = `
+                <div class="status info">
+                    ℹ️ ONNX Runtime Version: ${window.ort.version || 'Unknown'}
+                </div>
+                <div class="status info">
+                    ℹ️ WebGPU Entry Point: Loaded
+                </div>
+            `;
+            
+            if (env && env.wasm) {
+                html += `
+                    <div class="status info">
+                        ℹ️ WASM Paths: ${JSON.stringify(env.wasm.wasmPaths)}
+                    </div>
+                `;
+            }
+            
+            if (env && env.webgpu) {
+                html += `
+                    <div class="status info">
+                        ℹ️ WebGPU Config: ${JSON.stringify(env.webgpu)}
+                    </div>
+                `;
+            }
+            
+            config.innerHTML = html;
+        }
+
+        // Test WASM backend
+        async function testWASM() {
+            const results = document.getElementById('test-results');
+            results.innerHTML = '<div class="status info">⏳ Testing WASM backend...</div>';
+            
+            try {
+                log('Creating WASM session...', 'info');
+                
+                const session = await window.ort.InferenceSession.create(
+                    '/models/doclayout-yolo.onnx',
+                    {
+                        executionProviders: ['wasm'],
+                        graphOptimizationLevel: 'all'
+                    }
+                );
+                
+                log('✓ WASM session created successfully', 'success');
+                results.innerHTML = `
+                    <div class="status success">
+                        ✅ WASM backend working!<br>
+                        Session ID: ${session.id}<br>
+                        Inputs: ${session.inputNames.join(', ')}<br>
+                        Outputs: ${session.outputNames.join(', ')}
+                    </div>
+                `;
+                
+                await session.release();
+                log('WASM session released', 'info');
+            } catch (error) {
+                log(`✗ WASM test failed: ${error.message}`, 'error');
+                results.innerHTML = `
+                    <div class="status error">
+                        ❌ WASM backend failed:<br>
+                        ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // Test WebGPU backend
+        async function testWebGPU() {
+            const results = document.getElementById('test-results');
+            results.innerHTML = '<div class="status info">⏳ Testing WebGPU backend...</div>';
+            
+            if (!navigator.gpu) {
+                log('WebGPU not available in this browser', 'error');
+                results.innerHTML = `
+                    <div class="status error">
+                        ❌ WebGPU is not supported in this browser.<br>
+                        Please use Chrome 113+, Edge 112+, or Firefox Nightly with WebGPU enabled.
+                    </div>
+                `;
+                return;
+            }
+            
+            try {
+                log('WebGPU detected, attempting session creation...', 'info');
+                
+                const session = await window.ort.InferenceSession.create(
+                    '/models/doclayout-yolo.onnx',
+                    {
+                        executionProviders: ['webgpu'],
+                        graphOptimizationLevel: 'all'
+                    }
+                );
+                
+                log('✓ WebGPU session created successfully', 'success');
+                results.innerHTML = `
+                    <div class="status success">
+                        ✅ WebGPU backend working!<br>
+                        Session ID: ${session.id}<br>
+                        Inputs: ${session.inputNames.join(', ')}<br>
+                        Outputs: ${session.outputNames.join(', ')}<br>
+                        <em>Performance: GPU-accelerated</em>
+                    </div>
+                `;
+                
+                await session.release();
+                log('WebGPU session released', 'info');
+            } catch (error) {
+                log(`✗ WebGPU test failed: ${error.message}`, 'error');
+                results.innerHTML = `
+                    <div class="status error">
+                        ❌ WebGPU backend failed:<br>
+                        ${error.message}<br>
+                        <br>
+                        <strong>Common causes:</strong><br>
+                        • Missing JSEP WASM files (ort-wasm-simd.jsep.wasm)<br>
+                        • Browser doesn't support required WebGPU features<br>
+                        • Model not compatible with WebGPU operators
+                    </div>
+                `;
+            }
+        }
+
+        // Test both backends
+        async function testBoth() {
+            await testWASM();
+            // Wait a bit between tests
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await testWebGPU();
+        }
+
+        // Initialize
+        (async () => {
+            log('Starting WebGPU ONNX Runtime test...', 'info');
+            await displayBrowserInfo();
+            displayORTConfig();
+            log('Ready to run tests. Click buttons above to test backends.', 'info');
+        })();
+
+        // Expose functions globally for button onclick handlers
+        window.testWASM = testWASM;
+        window.testWebGPU = testWebGPU;
+        window.testBoth = testBoth;
+    </script>
+</body>
+</html>

@@ -87,13 +87,9 @@ export class AiScientificPdfConverter extends DocumentConverter {
         progress: pageProgress,
       });
 
-      const pageResult = await this.processPage(pdf, pageNum);
+      const { pageResult, pageHeight } = await this.processPage(pdf, pageNum);
       pageResults.push(pageResult);
-      
-      // Store page height for header detection
-      const page = await pdf.getPage(pageNum);
-      const viewport = page.getViewport({ scale: 1 });
-      pageHeights.push(viewport.height);
+      pageHeights.push(pageHeight);
     }
 
     this.options.onProgress?.({ status: 'Generating Markdown...', progress: 95 });
@@ -137,9 +133,15 @@ export class AiScientificPdfConverter extends DocumentConverter {
   /**
    * Process a single PDF page: render, analyze layout, OCR regions
    */
-  private async processPage(pdf: any, pageNum: number): Promise<PageResult> {
+  private async processPage(pdf: any, pageNum: number): Promise<{ pageResult: PageResult; pageHeight: number }> {
     const page = await pdf.getPage(pageNum);
     const viewport = page.getViewport({ scale: parseFloat(this.options.scale || '2') });
+
+    // Get base viewport height for header detection
+    const baseViewport = page.getViewport({ scale: 1 });
+    const pageHeight = baseViewport.height;
+
+    console.log(`[AiScientificPdfConverter] Processing page ${pageNum}, viewport: ${viewport.width}x${viewport.height}`);
 
     // Create canvas for rendering
     const canvas = document.createElement('canvas');
@@ -157,7 +159,9 @@ export class AiScientificPdfConverter extends DocumentConverter {
     const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
 
     // Detect layout regions
+    console.log(`[AiScientificPdfConverter] Running layout analysis on page ${pageNum}...`);
     const layoutRegions = await this.layoutAnalyzer.analyze(imageData);
+    console.log(`[AiScientificPdfConverter] Found ${layoutRegions.length} layout regions on page ${pageNum}`);
 
     // OCR each region
     const regions = [];
@@ -168,6 +172,9 @@ export class AiScientificPdfConverter extends DocumentConverter {
       // OCR the region
       const ocrResult = await this.ocrEngine.recognize(regionCanvas);
       const text = ocrResult.map((r) => r.text).join(' ');
+      
+      // Log region details for debugging
+      console.log(`[AiScientificPdfConverter] Region: type=${region.type}, bbox=${JSON.stringify(region.bbox)}, text="${text.substring(0, 100)}"`);
 
       if (text.trim()) {
         regions.push({
@@ -178,7 +185,9 @@ export class AiScientificPdfConverter extends DocumentConverter {
       }
     }
 
-    return { regions };
+    console.log(`[AiScientificPdfConverter] Page ${pageNum} processed, ${regions.length} regions with text`);
+
+    return { pageResult: { regions }, pageHeight };
   }
 
   /**

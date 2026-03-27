@@ -167,7 +167,16 @@ function stripHeaderFooterLines(text: string, repeatedMarkers: Set<string> = new
       return true;
     });
 
-  return lines.join(' ').replace(/\s{2,}/g, ' ').trim();
+  // First, join lines with a special marker to handle hyphenated words split across lines
+  // We use a two-step process: join with marker, then fix hyphenated words
+  const joined = lines.join(' \x00 '); // Use null char as temporary separator
+  
+  // Fix hyphenated words that were split across lines: "word- \n next" -> "word-next"
+  // Only join when hyphen is at end of line (followed by whitespace and then next word)
+  const fixedHyphens = joined.replace(/(\w+)-\s*\x00\s*(\w+)/g, '$1-$2');
+  
+  // Now replace the marker with normal space and clean up extra whitespace
+  return fixedHyphens.replace(/\x00/g, ' ').replace(/\s{2,}/g, ' ').trim();
 }
 
 /**
@@ -387,14 +396,20 @@ export function generateMarkdown(pageResults: PageResult[], pageHeights?: number
     const pageHeight = pageHeights && pageHeights[pageIndex] ? pageHeights[pageIndex] :
                        Math.max(...page.regions.map(r => r.bbox.y + r.bbox.height), 1000);
     
+    console.log(`[MarkdownGenerator] Page ${pageIndex + 1}: sorting ${page.regions.length} regions`);
+    
     // Sort regions by reading order
     let sortedRegions = sortRegionsByReadingOrder(page.regions);
+    
+    console.log(`[MarkdownGenerator] Page ${pageIndex + 1}: ALL sorted regions (${sortedRegions.length}):`,
+      sortedRegions.map(r => ({ type: r.type, text: r.text.substring(0, 100), bbox: r.bbox })));
 
     // On first page, extract and remove header block
     let headerMarkdown: string | null = null;
     if (pageIndex === 0) {
       headerMarkdown = extractHeaderBlock(sortedRegions, pageHeight);
       if (headerMarkdown) {
+        console.log(`[MarkdownGenerator] Page ${pageIndex + 1}: extracted header`);
         // Remove header regions from the list
         let i = 0;
         while (i < sortedRegions.length && isHeaderRegion(sortedRegions[i], 0, pageHeight)) {
@@ -415,11 +430,13 @@ export function generateMarkdown(pageResults: PageResult[], pageHeights?: number
 
     // Process remaining regions, filtering out headers/footers and garbage
     for (const region of sortedRegions) {
-    if (isPageHeaderOrFooter(region, pageHeight, pageWidth)) {
+      if (isPageHeaderOrFooter(region, pageHeight, pageWidth)) {
+        console.log(`[MarkdownGenerator] Filtering header/footer:`, { type: region.type, text: region.text.substring(0, 50) });
         continue;
       }
       
       if (isGarbageText(region.text)) {
+        console.log(`[MarkdownGenerator] Filtering garbage:`, { text: region.text.substring(0, 50) });
         continue;
       }
       
@@ -435,12 +452,15 @@ export function generateMarkdown(pageResults: PageResult[], pageHeights?: number
     const pageMarkdown = markdownParts.join('\n\n');
     if (pageMarkdown.trim()) {
       const processed = postProcessMarkdown(pageMarkdown.trim());
+      console.log(`[MarkdownGenerator] Page ${pageIndex + 1}: final markdown (first 200 chars):`, processed.substring(0, 200));
       pageMarkdowns.push(processed);
     }
   }
 
   const rawOutput = pageMarkdowns.join('\n\n---\n\n').trim();
-  return cleanMarkdownNoise(rawOutput);
+  const finalOutput = cleanMarkdownNoise(rawOutput);
+  console.log(`[MarkdownGenerator] Final output (first 500 chars):`, finalOutput.substring(0, 500));
+  return finalOutput;
 }
 
 /**
@@ -474,8 +494,11 @@ function detectColumns(regions: PageRegion[]): number[] {
   const maxX = Math.max(...xPositions);
   const spread = maxX - minX;
 
+  console.log('[MarkdownGenerator] Column detection:', { minX, maxX, spread, numRegions: regions.length });
+
   // If spread is small, single column
   if (spread < 200) {
+    console.log('[MarkdownGenerator] Single column layout detected (spread < 200)');
     return [0];
   }
 
@@ -489,6 +512,7 @@ function detectColumns(regions: PageRegion[]): number[] {
     columns.push(minX + i * columnWidth);
   }
 
+  console.log('[MarkdownGenerator] Multi-column layout detected:', { numColumns, columns });
   return columns;
 }
 

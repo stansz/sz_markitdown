@@ -1,4 +1,31 @@
-import * as ort from 'onnxruntime-web';
+// Import WebGPU-enabled ONNX Runtime
+import * as ort from 'onnxruntime-web/webgpu';
+import ortWasmAsyncifyMjsUrl from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?url';
+import ortWasmAsyncifyWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url';
+
+// IMPORTANT:
+// Do NOT force wasmPaths to /public in Vite dev, because ORT may try to dynamically
+// import .mjs companion files from that path and Vite rejects public-file source imports.
+// Let the bundler-resolved defaults be used for WebGPU runtime assets.
+if (typeof ort !== 'undefined' && ort.env && ort.env.wasm) {
+  // Explicitly pin the ORT runtime assets via Vite-processed URLs.
+  // This avoids loading HTML fallback content for wasm URLs in dev.
+  ort.env.wasm.wasmPaths = {
+    mjs: ortWasmAsyncifyMjsUrl,
+    wasm: ortWasmAsyncifyWasmUrl,
+  };
+
+  // Keep WebGPU-only flow deterministic and avoid threaded asyncify runtime variant
+  // that commonly triggers public-path dynamic import issues in dev.
+  ort.env.wasm.numThreads = 1;
+
+  console.log('[LayoutAnalyzer] ONNX Runtime environment configured:');
+  console.log('[LayoutAnalyzer] - WebGPU entrypoint imported:', true);
+  console.log('[LayoutAnalyzer] - wasmPaths (explicit):', ort.env.wasm.wasmPaths ?? '(unset)');
+  console.log('[LayoutAnalyzer] - pinned mjs URL:', ortWasmAsyncifyMjsUrl);
+  console.log('[LayoutAnalyzer] - pinned wasm URL:', ortWasmAsyncifyWasmUrl);
+  console.log('[LayoutAnalyzer] - numThreads:', ort.env.wasm.numThreads);
+}
 
 export interface LayoutRegion {
   type: 'text' | 'heading' | 'table' | 'figure' | 'caption' | 'list';
@@ -19,11 +46,13 @@ export interface LayoutAnalysisProgress {
 /**
  * Document layout analysis using ONNX models
  * Detects regions like text, headings, tables, figures in document images
+ * Uses WebGPU only (no fallback backend)
  */
 export class LayoutAnalyzer {
   private session: ort.InferenceSession | null = null;
   private initialized = false;
   private modelUrl: string;
+  private usedBackend: 'webgpu' | null = null;
 
   constructor(modelUrl: string = '/models/doclayout-yolo.onnx') {
     this.modelUrl = modelUrl;
@@ -31,7 +60,7 @@ export class LayoutAnalyzer {
 
   /**
    * Initialize the layout analyzer with ONNX model
-   * @param onProgress - Optional callback for initialization progress
+   * Initializes ONNX session with WebGPU only
    */
   async initialize(
     onProgress?: (progress: LayoutAnalysisProgress) => void
@@ -43,160 +72,132 @@ export class LayoutAnalyzer {
     onProgress?.({ status: 'Loading layout analysis model...', progress: 0 });
 
     try {
-      // Configure WASM paths to use local files
-      // This must be done before creating the inference session
-      if (typeof ort !== 'undefined' && ort.env && ort.env.wasm) {
-        // Use absolute URL to avoid Vite treating it as a module import
-        ort.env.wasm.wasmPaths = `${window.location.origin}/onnxruntime/`;
+      // Check WebGPU availability first
+      const hasWebGPU = typeof navigator !== 'undefined' && !!(navigator as any).gpu;
+      const pageOrigin = typeof window !== 'undefined' ? window.location.origin : 'unknown';
+      const expectedModelUrl = new URL(this.modelUrl, pageOrigin).toString();
+
+      console.log('[LayoutAnalyzer] Initialize called with diagnostics:');
+      console.log('[LayoutAnalyzer] - Model URL:', this.modelUrl);
+      console.log('[LayoutAnalyzer] - Resolved model URL:', expectedModelUrl);
+      console.log('[LayoutAnalyzer] - Current wasmPaths:', ort.env?.wasm?.wasmPaths);
+      console.log('[LayoutAnalyzer] - Current wasm.numThreads:', ort.env?.wasm?.numThreads);
+      console.log('[LayoutAnalyzer] - navigator.gpu present:', hasWebGPU);
+      console.log('[LayoutAnalyzer] - crossOriginIsolated:', typeof window !== 'undefined' ? window.crossOriginIsolated : 'unknown');
+      
+      if (!hasWebGPU) {
+        throw new Error('WebGPU is not available in this browser. AI Scientific mode requires WebGPU and does not allow fallback.');
       }
 
-      // Determine if WebGPU is available
-      const hasWebGPU = typeof navigator !== 'undefined' && (navigator as any).gpu;
-      let session: ort.InferenceSession;
+      console.log('[LayoutAnalyzer] WebGPU detected, attempting initialization...');
+      onProgress?.({ status: 'Initializing WebGPU backend...', progress: 20 });
+      
+      const sessionOptions: ort.InferenceSession.SessionOptions = {
+        executionProviders: ['webgpu'],
+        graphOptimizationLevel: 'all',
+      };
 
-      if (hasWebGPU) {
-        // Try WebGPU first with a timeout to avoid hanging
-        const webGPUTimeoutMs = 8000; // 8 seconds
-        try {
-          onProgress?.({ status: 'Initializing WebGPU...', progress: 10 });
-          session = await Promise.race([
-            ort.InferenceSession.create(this.modelUrl, {
-              executionProviders: ['webgpu'],
-            }),
-            new Promise<never>((_, reject) =>
-              setTimeout(
-                () => reject(new Error('WebGPU initialization timeout')),
-                webGPUTimeoutMs
-              )
-            ),
-          ]);
-          onProgress?.({ status: 'WebGPU initialized', progress: 50 });
-        } catch (webGPUError) {
-          console.warn('WebGPU failed, falling back to WASM:', webGPUError);
-          onProgress?.({ status: 'WebGPU failed, using WASM', progress: 20 });
-          // Fall back to WASM
-          session = await ort.InferenceSession.create(this.modelUrl, {
-            executionProviders: ['wasm'],
-          });
-        }
-      } else {
-        // Use WASM directly
-        onProgress?.({ status: 'Initializing WASM...', progress: 30 });
-        session = await ort.InferenceSession.create(this.modelUrl, {
-          executionProviders: ['wasm'],
-        });
-      }
-
-      this.session = session;
+      console.log('[LayoutAnalyzer] - Session options:', sessionOptions);
+      
+      this.session = await ort.InferenceSession.create(this.modelUrl, sessionOptions);
+      this.usedBackend = 'webgpu';
+      console.log('[LayoutAnalyzer] ✓ Model loaded successfully with WebGPU acceleration');
+      console.log('[LayoutAnalyzer]   Backend: WebGPU (JSEP)');
       this.initialized = true;
-      onProgress?.({ status: 'Layout analysis model ready', progress: 100 });
+      onProgress?.({ status: 'Layout analysis model ready (WebGPU)', progress: 100 });
     } catch (error) {
-      console.error('Failed to load layout analysis model:', error);
-      throw new Error(
-        `Failed to load layout analysis model: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`
-      );
+      console.error('[LayoutAnalyzer] ✗ Failed to load model:', error);
+      
+      // Provide more helpful error messages
+      let errorMessage = 'Failed to load layout analysis model. ';
+      if (error instanceof Error) {
+        errorMessage += 'WebGPU initialization failed (fallback disabled). ';
+        errorMessage += `Error: ${error.message}`;
+      } else {
+        errorMessage += 'Unknown error occurred.';
+      }
+      
+      throw new Error(errorMessage);
     }
   }
 
   /**
+   * Get which backend is being used
+   */
+  getUsedBackend(): 'webgpu' | null {
+    return this.usedBackend;
+  }
+
+  /**
    * Analyze document image to detect layout regions
-   * @param imageData - Image data from canvas
-   * @returns Array of detected regions with bounding boxes and types (in original image coordinates)
    */
   async analyze(imageData: ImageData): Promise<LayoutRegion[]> {
     if (!this.session) {
       throw new Error('Layout analyzer not initialized. Call initialize() first.');
     }
-    // Capture session in a local variable to satisfy TypeScript
-    const session = this.session;
 
-    // Preprocess image for model, also get transformation parameters
+    // Preprocess image for model
     const { tensor: inputTensor, params } = this.preprocessImage(imageData);
 
-    // Run inference with a timeout to prevent hanging
-    const inferenceTimeoutMs = 30000; // 30 seconds
-    let results: ort.InferenceSession.OnnxValueMapType;
-    try {
-      // Dynamically import the timeout utility
-      const { withTimeout } = await import('../lib/utils');
-      results = await withTimeout(
-        session.run({ images: inputTensor }),
-        inferenceTimeoutMs,
-        'Layout analysis inference timed out'
-      );
-    } catch (e) {
-      // If the dynamic import fails or timeout occurs, fallback to direct call without timeout
-      // (but only if the error is not from session.run itself)
-      if (e instanceof Error && e.message.includes('timed out')) {
-        console.warn('Inference timed out, attempting to continue without timeout');
-        // We still try to get results, but this may also hang; at least we logged
-        results = await session.run({ images: inputTensor });
-      } else {
-        throw e;
-      }
-    }
+    // Run inference
+    const results = await this.session.run({ images: inputTensor });
 
-    // Post-process results to get bounding boxes, and transform back to original coordinates
+    // Post-process results to get bounding boxes
     return this.postprocessResults(results, params);
   }
 
   /**
    * Preprocess image data for ONNX model input
-   * Resizes and pads image to the target size (typically 640x640 for YOLO models)
-   * @returns Object containing the input tensor and transformation parameters for coordinate mapping
    */
-  private preprocessImage(imageData: ImageData): { tensor: ort.Tensor; params: { scale: number; offsetX: number; offsetY: number; targetSize: number; originalWidth: number; originalHeight: number } } {
+  private preprocessImage(imageData: ImageData): { 
+    tensor: ort.Tensor; 
+    params: { 
+      scale: number; 
+      offsetX: number; 
+      offsetY: number; 
+      targetSize: number; 
+      originalWidth: number; 
+      originalHeight: number 
+    } 
+  } {
     const { width, height } = imageData;
-    
-    // YOLO models typically expect 640x640 input (can be configurable)
     const targetSize = 640;
     
-    // Calculate scaling factor to fit image within target size while preserving aspect ratio
     const scale = Math.min(targetSize / width, targetSize / height);
     const newWidth = Math.round(width * scale);
     const newHeight = Math.round(height * scale);
     
-    // Step 1: Create a canvas with the original image data
     const originalCanvas = document.createElement('canvas');
     originalCanvas.width = width;
     originalCanvas.height = height;
     originalCanvas.getContext('2d')!.putImageData(imageData, 0, 0);
     
-    // Step 2: Resize the image by drawing onto a smaller canvas
     const resizedCanvas = document.createElement('canvas');
     resizedCanvas.width = newWidth;
     resizedCanvas.height = newHeight;
     resizedCanvas.getContext('2d')!.drawImage(originalCanvas, 0, 0, newWidth, newHeight);
     
-    // Step 3: Create padded canvas with target size
     const paddedCanvas = document.createElement('canvas');
     paddedCanvas.width = targetSize;
     paddedCanvas.height = targetSize;
     const paddedCtx = paddedCanvas.getContext('2d')!;
     
-    // Fill with gray (127,127,127) - common YOLO padding
     paddedCtx.fillStyle = 'rgb(127, 127, 127)';
     paddedCtx.fillRect(0, 0, targetSize, targetSize);
     
-    // Center the resized image on the padded canvas
     const offsetX = (targetSize - newWidth) / 2;
     const offsetY = (targetSize - newHeight) / 2;
     paddedCtx.drawImage(resizedCanvas, offsetX, offsetY);
     
-    // Get final padded image data
     const paddedImageData = paddedCtx.getImageData(0, 0, targetSize, targetSize);
     const paddedData = paddedImageData.data;
     
-    // Normalize to [0, 1] and convert to NCHW format
     const float32Data = new Float32Array(3 * targetSize * targetSize);
 
     for (let i = 0; i < targetSize * targetSize; i++) {
-      // RGB channels, normalized to [0, 1]
-      float32Data[i] = paddedData[i * 4] / 255.0; // R
-      float32Data[targetSize * targetSize + i] = paddedData[i * 4 + 1] / 255.0; // G
-      float32Data[2 * targetSize * targetSize + i] = paddedData[i * 4 + 2] / 255.0; // B
+      float32Data[i] = paddedData[i * 4] / 255.0;
+      float32Data[targetSize * targetSize + i] = paddedData[i * 4 + 1] / 255.0;
+      float32Data[2 * targetSize * targetSize + i] = paddedData[i * 4 + 2] / 255.0;
     }
 
     return {
@@ -207,9 +208,6 @@ export class LayoutAnalyzer {
 
   /**
    * Post-process model output to extract regions
-   * @param results - ONNX model inference results
-   * @param params - Preprocessing parameters for coordinate transformation
-   * @returns Array of detected regions with bounding boxes in original image coordinates
    */
   private postprocessResults(
     results: ort.InferenceSession.OnnxValueMapType,
@@ -218,19 +216,22 @@ export class LayoutAnalyzer {
     const regions: LayoutRegion[] = [];
     const { scale, offsetX, offsetY, originalWidth, originalHeight } = params;
 
-    // Get output tensor (format depends on model)
-    const outputTensor = results.output || results.detections || Object.values(results)[0];
+    // Log available output tensor names for debugging
+    console.log('[LayoutAnalyzer] Available output tensor names:', Object.keys(results));
+    console.log('[LayoutAnalyzer] Output tensor details:', results);
+
+    const outputTensor = results.output || results.detections || results.output0 || Object.values(results)[0];
     
     if (!outputTensor) {
+      console.error('[LayoutAnalyzer] No valid output tensor found in results');
       return regions;
     }
 
     const outputData = outputTensor.data as Float32Array;
     const outputDims = outputTensor.dims;
+    console.log('[LayoutAnalyzer] Output tensor dimensions:', outputDims);
+    console.log('[LayoutAnalyzer] Output tensor data length:', outputData.length);
 
-    // Parse output based on model format
-    // DocLayout-YOLO output format: [batch, num_detections, 6]
-    // Each detection: [x1, y1, x2, y2, confidence, class_id]
     const numDetections = outputDims[1] || 0;
     const detectionSize = outputDims[2] || 6;
 
@@ -243,31 +244,25 @@ export class LayoutAnalyzer {
       const confidence = outputData[offset + 4];
       const classId = Math.round(outputData[offset + 5]);
 
-      // Filter low confidence detections
       if (confidence < 0.3) {
         continue;
       }
 
-      // Transform coordinates from padded image back to original image
-      // Remove padding offset
       x1 -= offsetX;
       y1 -= offsetY;
       x2 -= offsetX;
       y2 -= offsetY;
       
-      // Scale back to original size
       x1 /= scale;
       y1 /= scale;
       x2 /= scale;
       y2 /= scale;
       
-      // Clamp to original image bounds
       x1 = Math.max(0, Math.min(x1, originalWidth));
       y1 = Math.max(0, Math.min(y1, originalHeight));
       x2 = Math.max(0, Math.min(x2, originalWidth));
       y2 = Math.max(0, Math.min(y2, originalHeight));
 
-      // Map class ID to region type
       const type = this.classIdToType(classId);
 
       regions.push({
@@ -282,16 +277,10 @@ export class LayoutAnalyzer {
       });
     }
 
-    // Apply Non-Maximum Suppression (NMS) in original coordinate space
     return this.applyNMS(regions, 0.5);
   }
 
-  /**
-   * Map model class ID to region type
-   */
   private classIdToType(classId: number): LayoutRegion['type'] {
-    // DocLayout-YOLO class mapping
-    // Adjust based on actual model classes
     const classMap: Record<number, LayoutRegion['type']> = {
       0: 'text',
       1: 'heading',
@@ -301,18 +290,16 @@ export class LayoutAnalyzer {
       5: 'list',
     };
 
-    return classMap[classId] || 'text';
+    const result = classMap[classId] || 'text';
+    console.log(`[LayoutAnalyzer] Class ID ${classId} mapped to type: ${result}`);
+    return result;
   }
 
-  /**
-   * Apply Non-Maximum Suppression to remove overlapping detections
-   */
   private applyNMS(regions: LayoutRegion[], iouThreshold: number): LayoutRegion[] {
     if (regions.length === 0) {
       return [];
     }
 
-    // Sort by confidence (descending)
     const sorted = [...regions].sort((a, b) => b.confidence - a.confidence);
     const selected: LayoutRegion[] = [];
 
@@ -320,7 +307,6 @@ export class LayoutAnalyzer {
       const current = sorted.shift()!;
       selected.push(current);
 
-      // Remove overlapping regions
       for (let i = sorted.length - 1; i >= 0; i--) {
         const iou = this.calculateIoU(current.bbox, sorted[i].bbox);
         if (iou > iouThreshold) {
@@ -332,9 +318,6 @@ export class LayoutAnalyzer {
     return selected;
   }
 
-  /**
-   * Calculate Intersection over Union (IoU) between two bounding boxes
-   */
   private calculateIoU(
     box1: { x: number; y: number; width: number; height: number },
     box2: { x: number; y: number; width: number; height: number }
@@ -352,16 +335,10 @@ export class LayoutAnalyzer {
     return unionArea > 0 ? intersectionArea / unionArea : 0;
   }
 
-  /**
-   * Check if analyzer is initialized
-   */
   isInitialized(): boolean {
     return this.initialized && this.session !== null;
   }
 
-  /**
-   * Clean up resources
-   */
   async dispose(): Promise<void> {
     if (this.session) {
       await this.session.release();
@@ -371,14 +348,8 @@ export class LayoutAnalyzer {
   }
 }
 
-/**
- * Singleton layout analyzer instance for shared use
- */
 let sharedAnalyzer: LayoutAnalyzer | null = null;
 
-/**
- * Get or create shared layout analyzer instance
- */
 export function getSharedLayoutAnalyzer(modelUrl?: string): LayoutAnalyzer {
   if (!sharedAnalyzer) {
     sharedAnalyzer = new LayoutAnalyzer(modelUrl);
@@ -386,9 +357,6 @@ export function getSharedLayoutAnalyzer(modelUrl?: string): LayoutAnalyzer {
   return sharedAnalyzer;
 }
 
-/**
- * Terminate shared layout analyzer
- */
 export async function terminateSharedLayoutAnalyzer(): Promise<void> {
   if (sharedAnalyzer) {
     await sharedAnalyzer.dispose();

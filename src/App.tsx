@@ -54,6 +54,43 @@ function App() {
     }
   }, [showPrivacyPopover])
 
+  // Clear cache/storage on mount to force fresh load
+  useEffect(() => {
+    const clearCache = async () => {
+      try {
+        // Clear localStorage
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.clear();
+          console.log('[App] localStorage cleared');
+        }
+        
+        // Clear IndexedDB
+        if (typeof window !== 'undefined' && window.indexedDB) {
+          const databases = await window.indexedDB.databases();
+          for (const db of databases) {
+            if (db.name) {
+              await window.indexedDB.deleteDatabase(db.name);
+            }
+          }
+          console.log('[App] IndexedDB cleared');
+        }
+        
+        // Clear Service Workers
+        if (typeof window !== 'undefined' && 'serviceWorker' in window) {
+          const registrations = await window.navigator.serviceWorker.getRegistrations();
+          for (const registration of registrations) {
+            await registration.unregister();
+          }
+          console.log('[App] Service workers cleared');
+        }
+      } catch (err) {
+        console.error('[App] Error clearing cache:', err);
+      }
+    };
+    
+    clearCache();
+  }, []);
+
   // Detect WebGPU support on mount
   useEffect(() => {
     setWebgpuSupported(hasWebGPUSupport());

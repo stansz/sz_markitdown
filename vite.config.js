@@ -1,20 +1,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { nodePolyfills } from 'vite-plugin-node-polyfills';
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [
         react(),
-        nodePolyfills({
-            // Include specific polyfills needed for docling-sdk
-            include: ['process', 'buffer', 'util', 'events', 'stream', 'path'],
-            // Exclude globals that might conflict
-            globals: {
-                Buffer: true,
-                global: true,
-                process: true,
-            },
-        }),
     ],
     optimizeDeps: {
         exclude: ['lucide-react'],
@@ -27,6 +16,13 @@ export default defineConfig({
     define: {
         'process.env': {},
         'process': '{}',
+    },
+    server: {
+        headers: {
+            // Required for WebGPU/SharedArrayBuffer support
+            'Cross-Origin-Opener-Policy': 'same-origin',
+            'Cross-Origin-Embedder-Policy': 'require-corp',
+        },
     },
     build: {
         target: 'esnext',
