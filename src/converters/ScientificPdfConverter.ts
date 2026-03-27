@@ -97,7 +97,7 @@ interface ImageResource {
  * Document structure element
  */
 interface StructureElement {
-  type: 'heading' | 'paragraph' | 'list' | 'table' | 'figure' | 'separator';
+  type: 'heading' | 'paragraph' | 'list' | 'table' | 'figure' | 'separator' | 'metadata';
   level?: number;
   text: string;
   x: number;
@@ -751,8 +751,64 @@ export class ScientificPdfConverter extends DocumentConverter {
     // Group lines into paragraphs
     const paragraphs = this.groupLinesIntoParagraphs(filteredLines);
 
-    for (const paragraph of paragraphs) {
-      const element = this.classifyParagraph(paragraph, shapes, pageNum);
+    // On first page, detect and clean header block (title, authors, journal)
+    let startIndex = 0;
+    if (pageNum === 1 && paragraphs.length > 0) {
+      // Find the first header paragraph (skip any initial non-header lines like small logos)
+      let firstHeaderIdx = -1;
+      for (let i = 0; i < paragraphs.length; i++) {
+        if (this.isHeaderParagraph(paragraphs[i], pageNum, pageHeight)) {
+          firstHeaderIdx = i;
+          break;
+        }
+      }
+
+      // If we found a header paragraph, collect consecutive header-like paragraphs
+      // This includes both header paragraphs AND headings that appear at the top
+      if (firstHeaderIdx !== -1) {
+        const headerParagraphs: LineCell[][] = [];
+        let i = firstHeaderIdx;
+        for (; i < paragraphs.length; i++) {
+          const para = paragraphs[i];
+          const isHeader = this.isHeaderParagraph(para, pageNum, pageHeight);
+          // Also include if it's a heading at the top (before abstract)
+          const firstLine = para[0];
+          const text = para.map(l => l.text).join(' ').trim().toLowerCase();
+          const isTopHeading = !isHeader &&
+                               firstLine.y < pageHeight * 0.35 &&
+                               !text.startsWith('abstract') &&
+                               !text.startsWith('introduction') &&
+                               !text.startsWith('keywords') &&
+                               !text.match(/^\[?\d+\]?\s+(introduction|abstract|keywords)/i);
+          
+          if (isHeader || isTopHeading) {
+            headerParagraphs.push(para);
+          } else {
+            break; // Stop at first non-header, non-top paragraph
+          }
+        }
+        startIndex = i; // Skip header paragraphs in normal processing
+
+        if (headerParagraphs.length > 0) {
+          const headerMarkdown = this.formatHeaderBlock(headerParagraphs);
+          if (headerMarkdown) {
+            elements.push({
+              type: 'metadata',
+              text: headerMarkdown,
+              x: headerParagraphs[0][0].x,
+              y: headerParagraphs[0][0].y,
+              width: 0,
+              height: 0,
+              pageNum,
+            });
+          }
+        }
+      }
+    }
+
+    // Process remaining paragraphs (skip header ones already handled)
+    for (let i = startIndex; i < paragraphs.length; i++) {
+      const element = this.classifyParagraph(paragraphs[i], shapes, pageNum);
       if (element) {
         elements.push(element);
       }
@@ -1190,6 +1246,10 @@ export class ScientificPdfConverter extends DocumentConverter {
       case 'separator':
         return '---';
 
+      case 'metadata':
+        // Return pre-formatted markdown (YAML frontmatter or heading)
+        return element.text;
+
       case 'paragraph':
         default:
           return element.text;
@@ -1252,9 +1312,97 @@ export class ScientificPdfConverter extends DocumentConverter {
     }
   
     /**
+    /**
      * Filter out watermark/footer lines from the line collection
      */
     private filterWatermarkLines(lines: LineCell[], pageHeight: number): LineCell[] {
       return lines.filter(line => !this.isWatermarkLine(line, pageHeight));
+    }
+
+    /**
+     * Check if a paragraph is likely part of the document header (title, authors, journal)
+     * Header appears at top of first page with larger font, before Abstract/Introduction
+     */
+    private isHeaderParagraph(paragraph: LineCell[], pageNum: number, pageHeight: number): boolean {
+      if (pageNum !== 1) return false; // Only first page
+      if (paragraph.length === 0) return false;
+
+      const firstLine = paragraph[0];
+      const text = paragraph.map((l: LineCell) => l.text).join(' ').trim().toLowerCase();
+      
+      // Header is at the top of the page (top 50% to be more permissive)
+      const isAtTop = firstLine.y < pageHeight * 0.5;
+      
+      // Header typically has larger font (lower threshold to catch small fonts)
+      const avgFontSize = paragraph.reduce((sum, l) => sum + l.fontSize, 0) / paragraph.length;
+      const hasLargeFont = avgFontSize >= 8;
+      
+      // Check if it's before the abstract (headers don't include section headings)
+      const isBeforeAbstract = !text.startsWith('abstract') &&
+                               !text.startsWith('introduction') &&
+                               !text.startsWith('keywords') &&
+                               !text.startsWith('1.') &&
+                               !text.match(/^\[?\d+\]?\s+introduction/i);
+      
+      return isAtTop && hasLargeFont && isBeforeAbstract;
+    }
+
+    /**
+     * Clean header text by removing table syntax and noisy symbols
+     */
+    private cleanHeaderText(text: string): string {
+      if (!text) return '';
+      
+      let cleaned = text;
+      
+      // Remove table pipe syntax: strip leading/trailing pipes and collapse multiple pipes
+      cleaned = cleaned.replace(/^\s*\|+\s*/, '').replace(/\s*\|+\s*$/, '');
+      cleaned = cleaned.replace(/\s*\|\s*\|\s*/g, ' ').replace(/\s{2,}/g, ' ');
+      
+      // Remove lines with high ratio of non-alphanumeric characters (noise/OCR garbage)
+      // Check if the text contains many random symbols and few letters/numbers
+      const alphanumericCount = (cleaned.match(/[a-zA-Z0-9]/g) || []).length;
+      const totalLength = cleaned.length;
+      if (totalLength > 15 && alphanumericCount / totalLength < 0.4) {
+        // Too much noise - extract only alphanumeric and basic punctuation
+        cleaned = cleaned.replace(/[^a-zA-Z0-9\s.,;:!?()\-']/g, ' ').trim();
+      }
+      
+      // Clean up author line noise: remove symbols like ***, ®, @, ¥, ©, †, ‡, §, ¶, #
+      // Keep letters, numbers, spaces, and basic punctuation (commas, periods, hyphens, parentheses)
+      cleaned = cleaned.replace(/[®@¥©†‡§¶#*%^&_+=<>{}[\]|\\~`]/g, ' ');
+      
+      // Fix common OCR issues: spacing around dashes, multiple spaces
+      cleaned = cleaned.replace(/\s+/g, ' ').trim();
+      
+      // Remove trailing punctuation that's likely noise
+      cleaned = cleaned.replace(/[.,;:!?]+$/, '');
+      
+      return cleaned.trim();
+    }
+
+    /**
+     * Clean and format the header block as YAML metadata or clean text
+     */
+    private formatHeaderBlock(paragraphs: LineCell[][]): string {
+      if (paragraphs.length === 0) return '';
+      
+      const cleanedParagraphs = paragraphs.map((p: LineCell[]) => {
+        const text = p.map((l: LineCell) => l.text).join(' ').trim();
+        return this.cleanHeaderText(text);
+      }).filter((text: string) => text.length > 0);
+      
+      if (cleanedParagraphs.length === 0) return '';
+      
+      // If we have multiple lines, try to structure as YAML frontmatter
+      if (cleanedParagraphs.length >= 2) {
+        const title = cleanedParagraphs[0];
+        const authors = cleanedParagraphs.slice(1).join(', ');
+        
+        return `---\ntitle: "${title}"\nauthors: "${authors}"\n---\n\n`;
+      } else {
+        // Single line, just return cleaned text as level-1 heading
+        return `# ${cleanedParagraphs[0]}\n\n`;
+      }
     }
   }

@@ -26,6 +26,7 @@ function App() {
   })
   const [showPrivacyPopover, setShowPrivacyPopover] = useState(false)
   const [scientificMode, setScientificMode] = useState(false)
+  const [ocrMode, setOcrMode] = useState(false)
   const [webgpuSupported, setWebgpuSupported] = useState(false)
   const footerPopoverRef = useRef<HTMLDivElement>(null)
 
@@ -58,12 +59,20 @@ function App() {
     setWebgpuSupported(hasWebGPUSupport());
   }, []);
 
-  // Update converter when scientific mode changes
+  // Update converter when mode changes
   useEffect(() => {
-    converter.setPdfConversionMode(
-      scientificMode ? 'scientific' : 'standard'
-    );
-  }, [scientificMode, converter]);
+    let mode: 'standard' | 'scientific' | 'ocr' | 'ai-scientific' = 'standard';
+    
+    if (scientificMode && webgpuSupported) {
+      mode = 'ai-scientific';
+    } else if (ocrMode) {
+      mode = 'ocr';
+    } else if (scientificMode) {
+      mode = 'scientific';
+    }
+    
+    converter.setPdfConversionMode(mode);
+  }, [scientificMode, ocrMode, webgpuSupported, converter]);
 
   const handleFilesSelected = async (selectedFiles: File[]) => {
     const newFiles: FileResult[] = selectedFiles.map(file => ({
@@ -178,6 +187,8 @@ function App() {
               onFilesSelected={handleFilesSelected}
               scientificMode={scientificMode}
               onScientificModeChange={setScientificMode}
+              ocrMode={ocrMode}
+              onOcrModeChange={setOcrMode}
               webgpuSupported={webgpuSupported}
             />
 

@@ -4,6 +4,8 @@ interface FileUploadProps {
   onFilesSelected: (files: File[]) => void;
   scientificMode: boolean;
   onScientificModeChange: (enabled: boolean) => void;
+  ocrMode: boolean;
+  onOcrModeChange: (enabled: boolean) => void;
   webgpuSupported: boolean;
 }
 
@@ -11,6 +13,8 @@ export function FileUpload({
   onFilesSelected,
   scientificMode,
   onScientificModeChange,
+  ocrMode,
+  onOcrModeChange,
   webgpuSupported,
 }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -110,6 +114,46 @@ export function FileUpload({
           ))}
         </div>
 
+        {/* OCR Mode Toggle */}
+        <div className="mt-4 p-3 rounded-lg bg-muted/40 border border-border">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={ocrMode}
+                  onChange={(e) => onOcrModeChange(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+              </label>
+              <div>
+                <span className="text-sm font-medium text-foreground">
+                  OCR Mode
+                </span>
+                <p className="text-xs text-muted-foreground">
+                  For scanned documents and poorly formatted PDFs
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <svg
+                className="w-5 h-5 text-primary"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+
         {/* Scientific Paper Mode Toggle */}
         <div className="mt-4 p-3 rounded-lg bg-muted/40 border border-border">
           <div className="flex items-center justify-between">
@@ -126,7 +170,7 @@ export function FileUpload({
               </label>
               <div>
                 <span className="text-sm font-medium text-foreground">
-                  Scientific Paper Mode
+                  AI Scientific Paper Mode
                 </span>
                 {!webgpuSupported && (
                   <p className="text-xs text-destructive">
@@ -152,8 +196,7 @@ export function FileUpload({
             </div>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            Enhanced conversion for research papers with tables, figures, and
-            complex layouts
+            AI-powered conversion with layout analysis and OCR for research papers
           </p>
         </div>
       </div>

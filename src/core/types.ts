@@ -57,7 +57,7 @@ export const PRIORITY_GENERIC_FILE_FORMAT = 10.0;
 /**
  * Conversion mode for PDF files
  */
-export type PdfConversionMode = 'standard' | 'scientific';
+export type PdfConversionMode = 'standard' | 'scientific' | 'ocr' | 'ai-scientific';
 
 /**
  * Options for MarkItDown initialization

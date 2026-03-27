@@ -46,12 +46,33 @@ MarkItDown Browser exists to provide a simple, privacy-focused tool for converti
 ## Context
 
 **Current Work Focus:**
-- Fixing PDF conversion issues related to PDF.js worker loading
+- Implementing OCR and AI-based PDF conversion for better handling of poorly formatted papers
 - Ensuring all converters work reliably in browser environment
 - Maintaining code quality and TypeScript type safety
 
 **Recent Changes:**
-- **Added Scientific Paper Mode** (current): Enhanced PDF conversion for scientific and peer-reviewed papers using heuristic-based layout analysis.
+- **Added OCR and AI-based PDF Conversion** (current): New conversion modes for handling scanned documents and poorly formatted PDFs.
+  - **OCR Mode** (`OcrPdfConverter`): Uses Tesseract.js for text extraction from rendered PDF pages
+    - Works with scanned documents and poorly formatted PDFs
+    - Renders PDF pages to high-resolution images and extracts text via OCR
+    - Supports 100+ languages via Tesseract.js
+    - ~2MB additional bundle size (lazy loaded)
+  - **AI Scientific Paper Mode** (`AiScientificPdfConverter`): Combines OCR with document layout analysis
+    - Uses DocLayout-YOLO (ONNX) for detecting document structure (headings, tables, figures, etc.)
+    - Uses Tesseract.js for OCR of detected regions
+    - Handles multi-column layouts with proper reading order
+    - Requires WebGPU for optimal performance (falls back to WASM)
+    - ~15-20MB bundle size (lazy loaded)
+  - Added `src/utils/ocrEngine.ts` for Tesseract.js worker management
+  - Added `src/utils/layoutAnalysis.ts` for ONNX-based document layout analysis
+  - Added `src/utils/markdownGenerator.ts` for converting detected structure to Markdown
+  - Added `src/utils/cache.ts` for caching OCR results using IndexedDB
+  - Updated `MarkItDown` class to support new conversion modes: 'standard', 'scientific', 'ocr', 'ai-scientific'
+  - Added OCR mode toggle in FileUpload component
+  - Implemented lazy loading for OCR/AI converters to reduce initial bundle size
+  - Added caching for OCR results to improve performance on repeated conversions
+
+- **Added Scientific Paper Mode**: Enhanced PDF conversion for scientific and peer-reviewed papers using heuristic-based layout analysis.
   - Created `src/converters/ScientificPdfConverter.ts` with advanced heuristics for:
     - Multi-column layout detection using density analysis
     - Reading order determination (top-to-bottom, left-to-right)
@@ -78,10 +99,12 @@ MarkItDown Browser exists to provide a simple, privacy-focused tool for converti
   - Vite config already had manual chunking for the worker
 
 **Next Steps:**
-- Test PDF conversion with various PDF files to ensure robustness
-- Monitor for any other converter-specific issues
+- Test OCR and AI modes with various PDF files (scanned, multi-column, tables)
+- Obtain or create DocLayout-YOLO ONNX model for document layout analysis
+- Add progress indicators for OCR/AI conversion (model loading, page processing)
+- Test browser compatibility (Chrome, Firefox, Safari)
+- Monitor performance with large documents
 - Consider adding more document format support if needed
-- Potentially add conversion progress indicators for large files
 
 ---
 
@@ -107,6 +130,8 @@ src/
 │   ├── OutlookMsgConverter.ts  # MSG → Markdown (@kenjiuno/msgreader)
 │   ├── PdfConverter.ts     # PDF → Markdown (pdf.js)
 │   ├── ScientificPdfConverter.ts  # PDF → Markdown (heuristic layout analysis)
+│   ├── OcrPdfConverter.ts  # PDF → Markdown (Tesseract.js OCR)
+│   ├── AiScientificPdfConverter.ts  # PDF → Markdown (OCR + layout analysis)
 │   ├── PptxConverter.ts    # PPTX → Markdown (pptx2json)
 │   └── XlsxConverter.ts    # XLSX → Markdown (xlsx)
 ├── core/               # Core application logic
@@ -115,6 +140,10 @@ src/
 ├── utils/              # Utility functions
 │   ├── fileDetection.ts # MIME type and extension matching
 │   ├── webgpuDetection.ts # WebGPU support detection
+│   ├── ocrEngine.ts     # Tesseract.js OCR engine management
+│   ├── layoutAnalysis.ts # ONNX-based document layout analysis
+│   ├── markdownGenerator.ts # Structure to Markdown conversion
+│   ├── cache.ts         # IndexedDB caching for OCR results
 │   └── llmClient.ts     # LLM integration (future)
 └── lib/
     └── utils.ts         # General utilities
@@ -154,6 +183,8 @@ src/
 - **Converters**:
   - `pdfjs-dist` (v4.4.168) for PDF text extraction
   - Advanced heuristic-based layout analysis for scientific PDFs (no external ML dependencies)
+  - `tesseract.js` (v5.0.0) for OCR-based text extraction
+  - `onnxruntime-web` (v1.18.0) for document layout analysis models
   - `mammoth` (v1.8.0) for DOCX conversion
   - `marked` (v12.0.0) for HTML to Markdown
   - `@kenjiuno/msgreader` (v1.28.0) for Outlook .msg conversion
