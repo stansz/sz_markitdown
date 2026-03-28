@@ -51,6 +51,14 @@ MarkItDown Browser exists to provide a simple, privacy-focused tool for converti
 - Maintaining code quality and TypeScript type safety
 
 **Recent Changes:**
+- **Improved Markdown info tooltip UX** (2025-03-28): Moved "what is markdown?" prompt from footer to appear when clicking "Markdown" text in header subheading.
+  - Removed "About Markdown" button from footer
+  - Made "Markdown" text clickable with hyperlink styling in header
+  - Added tooltip with black background and white text for better visibility
+  - Implemented drag event handling to close tooltip when files are being dragged
+  - Used `dragenter` event with file type detection to close tooltip during drag operations
+  - Added high z-index (`z-[99999]`) to ensure tooltip appears above all elements
+  - Improved list alignment with `list-outside` and proper left margin
 - **Added Outlook .msg converter** (2025-03-28): Implemented `OutlookMsgConverter` using `@kenjiuno/msgreader` library to convert Outlook message files to Markdown.
   - Created `src/converters/OutlookMsgConverter.ts`
   - Added `.msg` MIME type mapping in `fileDetection.ts`

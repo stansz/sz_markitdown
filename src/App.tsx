@@ -49,9 +49,20 @@ function App() {
       }
     }
 
+    const handleDragEnter = (event: DragEvent) => {
+      // Only close if dragging files (not internal drag operations)
+      if (event.dataTransfer?.types.includes('Files')) {
+        setShowMarkdownInfoPopover(false)
+      }
+    }
+
     if (showPrivacyPopover || showMarkdownInfoPopover) {
       document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
+      document.addEventListener('dragenter', handleDragEnter)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+        document.removeEventListener('dragenter', handleDragEnter)
+      }
     }
   }, [showPrivacyPopover, showMarkdownInfoPopover])
 
@@ -148,7 +159,7 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header with gradient accent */}
-      <header className="relative border-b bg-card/60 backdrop-blur-md">
+      <header className="relative border-b bg-card/60 backdrop-blur-md z-40">
         <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
         <div className="container mx-auto px-4 py-5">
           <div className="flex items-center justify-between">
@@ -172,7 +183,43 @@ function App() {
                   Browser MarkItDown
                 </h1>
                 <p className="text-sm text-muted-foreground/80">
-                  Convert documents to Markdown
+                  Convert documents to{' '}
+                  <button
+                    onClick={() => setShowMarkdownInfoPopover(!showMarkdownInfoPopover)}
+                    className="relative inline-flex items-center gap-1.5 ml-1 text-primary font-medium underline decoration-primary/30 hover:decoration-primary/60 hover:text-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 focus:rounded"
+                    aria-label="What is Markdown"
+                  >
+                    Markdown
+                    {showMarkdownInfoPopover && (
+                      <div className="absolute top-full left-0 mt-2 w-80 z-[99999] animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="p-4 rounded-lg bg-black border border-gray-700 shadow-2xl">
+                          <div className="absolute -top-1.5 left-8 w-3 h-3 rotate-45 bg-black border-t border-l border-gray-700" />
+                          <div className="space-y-3">
+                            <h4 className="font-semibold text-sm text-white flex items-center gap-1.5">
+                              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                              </svg>
+                              What is Markdown?
+                            </h4>
+                            <p className="text-xs text-gray-300 leading-relaxed">
+                              Markdown is a lightweight markup language that uses plain text formatting syntax. It's designed to be easily readable and writable, while still providing rich formatting options.
+                            </p>
+                            <div className="space-y-2 pt-1">
+                              <p className="text-xs font-medium text-white">Why it's great:</p>
+                              <ul className="text-xs text-gray-300 space-y-1 list-disc list-outside text-left ml-4">
+                                <li>Human-readable even as plain text</li>
+                                <li>Portable across all platforms and devices</li>
+                                <li>Future-proof - plain text never becomes obsolete</li>
+                                <li>Version control friendly (works great with Git)</li>
+                                <li>Easy to convert to HTML, PDF, and other formats</li>
+                                <li>Widely supported by GitHub, Reddit, Discord, and many more</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </button>
                 </p>
               </div>
             </div>
@@ -326,54 +373,6 @@ function App() {
                 )}
               </div>
 
-              {/* Markdown info button and popover */}
-              <div className="relative" ref={markdownInfoPopoverRef}>
-                <button
-                  onClick={() => setShowMarkdownInfoPopover(!showMarkdownInfoPopover)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/5 hover:bg-primary/10 border border-primary/10 hover:border-primary/20 transition-all duration-300 group"
-                  aria-label="What is Markdown"
-                >
-                  <svg className="w-4 h-4 text-primary/80 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-                  </svg>
-                  <span className="text-xs text-primary/80 group-hover:text-primary">
-                    About Markdown
-                  </span>
-                  <svg className="w-3 h-3 text-primary/60 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </button>
-
-                {showMarkdownInfoPopover && (
-                  <div className="absolute bottom-full right-0 mb-3 w-80 z-50 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="p-4 rounded-lg bg-popover border border-border shadow-lg backdrop-blur-md">
-                      <div className="absolute -bottom-1.5 right-8 w-3 h-3 rotate-45 bg-popover border-r border-b border-border" />
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
-                          <svg className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                          </svg>
-                          What is Markdown?
-                        </h4>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          Markdown is a lightweight markup language that uses plain text formatting syntax. It's designed to be easily readable and writable, while still providing rich formatting options.
-                        </p>
-                        <div className="space-y-2 pt-1">
-                          <p className="text-xs font-medium text-foreground">Why it's great:</p>
-                          <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                            <li>Human-readable even as plain text</li>
-                            <li>Portable across all platforms and devices</li>
-                            <li>Future-proof - plain text never becomes obsolete</li>
-                            <li>Version control friendly (works great with Git)</li>
-                            <li>Easy to convert to HTML, PDF, and other formats</li>
-                            <li>Widely supported by GitHub, Reddit, Discord, and many more</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
 
               {/* GitHub link */}
               <a
