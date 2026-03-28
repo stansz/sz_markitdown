@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { FileUpload } from './components/FileUpload'
 import { FileList } from './components/FileList'
 import { MarkdownPreview } from './components/MarkdownPreview'
@@ -23,6 +23,8 @@ function App() {
     }
     return false
   })
+  const [showPrivacyPopover, setShowPrivacyPopover] = useState(false)
+  const footerPopoverRef = useRef<HTMLDivElement>(null)
 
   // Handle dark mode class on document
   useEffect(() => {
@@ -33,6 +35,57 @@ function App() {
       root.classList.remove('dark')
     }
   }, [darkMode])
+
+  // Close popover when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (footerPopoverRef.current && !footerPopoverRef.current.contains(event.target as Node)) {
+        setShowPrivacyPopover(false)
+      }
+    }
+
+    if (showPrivacyPopover) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showPrivacyPopover])
+
+  // Clear cache/storage on mount to force fresh load
+  useEffect(() => {
+    const clearCache = async () => {
+      try {
+        // Clear localStorage
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.clear();
+          console.log('[App] localStorage cleared');
+        }
+        
+        // Clear IndexedDB
+        if (typeof window !== 'undefined' && window.indexedDB) {
+          const databases = await window.indexedDB.databases();
+          for (const db of databases) {
+            if (db.name) {
+              await window.indexedDB.deleteDatabase(db.name);
+            }
+          }
+          console.log('[App] IndexedDB cleared');
+        }
+        
+        // Clear Service Workers
+        if (typeof window !== 'undefined' && 'serviceWorker' in window) {
+          const registrations = await window.navigator.serviceWorker.getRegistrations();
+          for (const registration of registrations) {
+            await registration.unregister();
+          }
+          console.log('[App] Service workers cleared');
+        }
+      } catch (err) {
+        console.error('[App] Error clearing cache:', err);
+      }
+    };
+    
+    clearCache();
+  }, []);
 
   const handleFilesSelected = async (selectedFiles: File[]) => {
     const newFiles: FileResult[] = selectedFiles.map(file => ({
@@ -144,7 +197,7 @@ function App() {
           {/* Left Panel - Upload and File List */}
           <div className="lg:col-span-2 space-y-5">
             <FileUpload onFilesSelected={handleFilesSelected} />
-            
+
             {files.length > 0 && (
               <FileList
                 files={files}
@@ -210,19 +263,78 @@ function App() {
       </main>
 
       <footer className="border-t bg-card/50">
-        <div className="container mx-auto px-4 py-4 text-center">
-          <p className="text-sm text-muted-foreground">
-            Browser-based version of{' '}
-            <a
-              href="https://github.com/microsoft/markitdown"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              Microsoft MarkItDown
-            </a>
-            
-          </p>
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Stan's browser-based version of{' '}
+              <a
+                href="https://github.com/microsoft/markitdown"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline font-medium"
+              >
+                Microsoft MarkItDown
+              </a>
+            </p>
+
+            <div className="flex flex-col items-end gap-2">
+              {/* Privacy indicator */}
+              <div className="relative" ref={footerPopoverRef}>
+                <button
+                  onClick={() => setShowPrivacyPopover(!showPrivacyPopover)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/5 hover:bg-primary/10 border border-primary/10 hover:border-primary/20 transition-all duration-300 group"
+                  aria-label="Privacy information"
+                >
+                  <div className="w-2 h-2 rounded-full bg-green-500 group-hover:bg-green-400 transition-colors" />
+                  <span className="text-xs font-medium text-primary/80 group-hover:text-primary">
+                    100% Private
+                  </span>
+                  <svg className="w-3 h-3 text-primary/60 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
+
+                {/* Popover */}
+                {showPrivacyPopover && (
+                  <div className="absolute bottom-full right-0 mb-3 w-72 z-50 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="p-4 rounded-lg bg-popover border border-border shadow-lg backdrop-blur-md">
+                      <div className="absolute -bottom-1.5 right-8 w-3 h-3 rotate-45 bg-popover border-r border-b border-border" />
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                          <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Fully Client-Side
+                        </h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          All conversions happen locally in your browser. Your files never leave your device.
+                        </p>
+                        <div className="flex items-center gap-1.5 pt-1">
+                          <svg className="w-3 h-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+                          </svg>
+                          <span className="text-xs text-muted-foreground">Works offline</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* GitHub link */}
+              <a
+                href="https://github.com/stansz/sz_markitdown"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+              >
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                <span>GitHub</span>
+              </a>
+            </div>
+          </div>
         </div>
       </footer>
     </div>

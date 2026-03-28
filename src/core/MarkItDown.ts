@@ -44,11 +44,11 @@ export class MarkItDown {
 
     // Register converters in reverse order (most specific first)
     // Later registrations are tried first (higher priority)
+    this.registerConverter(new OutlookMsgConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
     this.registerConverter(new PptxConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
     this.registerConverter(new XlsxConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
     this.registerConverter(new PdfConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
     this.registerConverter(new DocxConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
-    this.registerConverter(new OutlookMsgConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
     this.registerConverter(new HtmlConverter(), PRIORITY_GENERIC_FILE_FORMAT);
 
     this.builtinsEnabled = true;
@@ -88,9 +88,11 @@ export class MarkItDown {
 
     for (const registration of sortedRegistrations) {
       const { converter } = registration;
+      console.log('[MarkItDown] Trying converter:', converter.constructor.name);
 
       try {
         if (converter.accepts(fileStream, streamInfo)) {
+          console.log('[MarkItDown] Converter accepted, converting...');
           const result = await converter.convert(fileStream, streamInfo);
 
           // Normalize the content (remove trailing whitespace, collapse multiple newlines)
@@ -100,12 +102,14 @@ export class MarkItDown {
             .join('\n');
           normalized = normalized.replace(/\n{3,}/g, '\n\n');
 
+          console.log('[MarkItDown] Conversion complete with:', converter.constructor.name);
           return {
             markdown: normalized,
             title: result.title,
           };
         }
       } catch (error) {
+        console.error('[MarkItDown] Converter failed:', converter.constructor.name, error);
         failedAttempts.push({
           converter: converter.constructor.name,
           error: error instanceof Error ? error : new Error(String(error)),
