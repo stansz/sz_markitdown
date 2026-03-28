@@ -245,74 +245,68 @@ function App() {
       </header>
 
       <main className="container mx-auto px-4 py-8 flex-1">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Left Panel - Upload and File List */}
-          <div className="lg:col-span-2 space-y-5">
-            <FileUpload onFilesSelected={handleFilesSelected} />
-
-            {files.length > 0 && (
-              <FileList
-                files={files}
-                selectedIndex={selectedFileIndex}
-                onSelect={setSelectedFileIndex}
-                onRemove={handleRemoveFile}
-              />
-            )}
+        {files.length === 0 ? (
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="w-full max-w-lg">
+              <FileUpload onFilesSelected={handleFilesSelected} />
+            </div>
           </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            {/* Left Panel - Upload and File List */}
+            <div className="lg:col-span-2 space-y-5">
+              <FileUpload onFilesSelected={handleFilesSelected} />
+
+              {files.length > 0 && (
+                <FileList
+                  files={files}
+                  selectedIndex={selectedFileIndex}
+                  onSelect={setSelectedFileIndex}
+                  onRemove={handleRemoveFile}
+                />
+              )}
+            </div>
 
           {/* Right Panel - Preview and Actions */}
-          <div className="lg:col-span-3">
-            {selectedFile?.result ? (
-              <div className="space-y-5">
-                <ActionButtons
-                  markdown={selectedFile.result.markdown}
-                  filename={selectedFile.file.name}
-                />
-                <MarkdownPreview markdown={selectedFile.result.markdown} />
-              </div>
-            ) : selectedFile?.loading ? (
-              <div className="h-full min-h-[400px] flex items-center justify-center">
-                <div className="text-center p-8 rounded-2xl bg-card border shadow-sm">
-                  <div className="relative w-16 h-16 mx-auto mb-4">
-                    <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
-                    <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-                  </div>
-                  <p className="text-muted-foreground font-medium">Converting document...</p>
-                  <p className="text-sm text-muted-foreground/70 mt-1">{selectedFile.file.name}</p>
+          {files.length > 0 && selectedFileIndex !== null ? (
+            <div className="lg:col-span-3">
+              {selectedFile?.result ? (
+                <div className="space-y-5">
+                  <ActionButtons
+                    markdown={selectedFile.result.markdown}
+                    filename={selectedFile.file.name}
+                  />
+                  <MarkdownPreview markdown={selectedFile.result.markdown} />
                 </div>
-              </div>
-            ) : selectedFile?.error ? (
-              <div className="h-full min-h-[400px] flex items-center justify-center">
-                <div className="text-center p-8 rounded-2xl bg-destructive/5 border border-destructive/20 shadow-sm max-w-sm">
-                  <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-7 h-7 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                    </svg>
+              ) : selectedFile?.loading ? (
+                <div className="h-full min-h-[400px] flex items-center justify-center">
+                  <div className="text-center p-8 rounded-2xl bg-card border-2 shadow-sm">
+                    <div className="relative w-16 h-16 mx-auto mb-4">
+                      <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+                      <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+                    </div>
+                    <p className="text-muted-foreground font-medium">Converting document...</p>
+                    <p className="text-sm text-muted-foreground/70 mt-1">{selectedFile.file.name}</p>
                   </div>
-                  <p className="font-semibold text-destructive">Conversion Failed</p>
-                  <p className="text-sm text-muted-foreground mt-2">{selectedFile.error}</p>
                 </div>
-              </div>
-            ) : (
-              <div className="h-full min-h-[400px] flex items-center justify-center">
-                <div className="text-center p-8 rounded-2xl bg-card/50 border border-dashed shadow-sm">
-                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-muted-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                    </svg>
+              ) : selectedFile?.error ? (
+                <div className="h-full min-h-[400px] flex items-center justify-center">
+                  <div className="text-center p-8 rounded-2xl bg-destructive/5 border-2 border-destructive/20 shadow-sm max-w-sm">
+                    <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-7 h-7 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                      </svg>
+                    </div>
+                    <p className="font-semibold text-destructive">Conversion Failed</p>
+                    <p className="text-sm text-muted-foreground mt-2">{selectedFile.error}</p>
                   </div>
-                  <p className="text-muted-foreground font-medium">
-                    Select a file to preview
-                  </p>
-                  <p className="text-sm text-muted-foreground/60 mt-1">
-                    Your Markdown will appear here
-                  </p>
                 </div>
-              </div>
-            )}
-          </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
-      </main>
+      )}
+    </main>
 
       <footer className="border-t bg-card/50">
         <div className="container mx-auto px-4 py-4">
