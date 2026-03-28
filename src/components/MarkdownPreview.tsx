@@ -15,7 +15,7 @@ export function MarkdownPreview({ markdown }: MarkdownPreviewProps) {
   const html = marked.parse(markdown) as string;
 
   return (
-    <div className="border rounded-2xl overflow-hidden shadow-sm bg-card/80 backdrop-blur-sm">
+    <div className="border-2 rounded-2xl overflow-hidden shadow-sm bg-card/80 backdrop-blur-sm">
       <div className="bg-muted/30 px-4 py-3 border-b flex items-center justify-between">
         <h3 className="font-semibold text-sm text-foreground/80">Preview</h3>
         <div className="flex items-center gap-2">

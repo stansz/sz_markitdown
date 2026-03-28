@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { FileUpload } from './components/FileUpload'
 import { FileList } from './components/FileList'
 import { MarkdownPreview } from './components/MarkdownPreview'
@@ -23,6 +23,10 @@ function App() {
     }
     return false
   })
+  const [showPrivacyPopover, setShowPrivacyPopover] = useState(false)
+  const [showMarkdownInfoPopover, setShowMarkdownInfoPopover] = useState(false)
+  const footerPopoverRef = useRef<HTMLDivElement>(null)
+  const markdownInfoPopoverRef = useRef<HTMLDivElement>(null)
 
   // Handle dark mode class on document
   useEffect(() => {
@@ -33,6 +37,71 @@ function App() {
       root.classList.remove('dark')
     }
   }, [darkMode])
+
+  // Close popover when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (footerPopoverRef.current && !footerPopoverRef.current.contains(event.target as Node)) {
+        setShowPrivacyPopover(false)
+      }
+      if (markdownInfoPopoverRef.current && !markdownInfoPopoverRef.current.contains(event.target as Node)) {
+        setShowMarkdownInfoPopover(false)
+      }
+    }
+
+    const handleDragEnter = (event: DragEvent) => {
+      // Only close if dragging files (not internal drag operations)
+      if (event.dataTransfer?.types.includes('Files')) {
+        setShowMarkdownInfoPopover(false)
+      }
+    }
+
+    if (showPrivacyPopover || showMarkdownInfoPopover) {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('dragenter', handleDragEnter)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+        document.removeEventListener('dragenter', handleDragEnter)
+      }
+    }
+  }, [showPrivacyPopover, showMarkdownInfoPopover])
+
+  // Clear cache/storage on mount to force fresh load
+  useEffect(() => {
+    const clearCache = async () => {
+      try {
+        // Clear localStorage
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.clear();
+          console.log('[App] localStorage cleared');
+        }
+        
+        // Clear IndexedDB
+        if (typeof window !== 'undefined' && window.indexedDB) {
+          const databases = await window.indexedDB.databases();
+          for (const db of databases) {
+            if (db.name) {
+              await window.indexedDB.deleteDatabase(db.name);
+            }
+          }
+          console.log('[App] IndexedDB cleared');
+        }
+        
+        // Clear Service Workers
+        if (typeof window !== 'undefined' && 'serviceWorker' in window) {
+          const registrations = await window.navigator.serviceWorker.getRegistrations();
+          for (const registration of registrations) {
+            await registration.unregister();
+          }
+          console.log('[App] Service workers cleared');
+        }
+      } catch (err) {
+        console.error('[App] Error clearing cache:', err);
+      }
+    };
+    
+    clearCache();
+  }, []);
 
   const handleFilesSelected = async (selectedFiles: File[]) => {
     const newFiles: FileResult[] = selectedFiles.map(file => ({
@@ -90,7 +159,7 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header with gradient accent */}
-      <header className="relative border-b bg-card/60 backdrop-blur-md">
+      <header className="relative border-b bg-card/60 backdrop-blur-md z-40">
         <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
         <div className="container mx-auto px-4 py-5">
           <div className="flex items-center justify-between">
@@ -111,10 +180,46 @@ function App() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
-                  MarkItDown
+                  Browser MarkItDown
                 </h1>
                 <p className="text-sm text-muted-foreground/80">
-                  Convert documents to Markdown — 100% client-side
+                  Convert documents to{' '}
+                  <button
+                    onClick={() => setShowMarkdownInfoPopover(!showMarkdownInfoPopover)}
+                    className="relative inline-flex items-center gap-1.5 ml-1 text-primary font-medium underline decoration-primary/30 hover:decoration-primary/60 hover:text-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 focus:rounded"
+                    aria-label="What is Markdown"
+                  >
+                    Markdown
+                    {showMarkdownInfoPopover && (
+                      <div className="absolute top-full left-0 mt-2 w-80 z-[99999] animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="p-4 rounded-lg bg-black border border-gray-700 shadow-2xl">
+                          <div className="absolute -top-1.5 left-8 w-3 h-3 rotate-45 bg-black border-t border-l border-gray-700" />
+                          <div className="space-y-3">
+                            <h4 className="font-semibold text-sm text-white flex items-center gap-1.5">
+                              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                              </svg>
+                              What is Markdown?
+                            </h4>
+                            <p className="text-xs text-gray-300 leading-relaxed">
+                              Markdown is a lightweight markup language that uses plain text formatting syntax. It's designed to be easily readable and writable, while still providing rich formatting options.
+                            </p>
+                            <div className="space-y-2 pt-1">
+                              <p className="text-xs font-medium text-white">Why it's great:</p>
+                              <ul className="text-xs text-gray-300 space-y-1 list-disc list-outside text-left ml-4">
+                                <li>Human-readable even as plain text</li>
+                                <li>Portable across all platforms and devices</li>
+                                <li>Future-proof - plain text never becomes obsolete</li>
+                                <li>Version control friendly (works great with Git)</li>
+                                <li>Easy to convert to HTML, PDF, and other formats</li>
+                                <li>Widely supported by GitHub, Reddit, Discord, and many more</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </button>
                 </p>
               </div>
             </div>
@@ -140,89 +245,143 @@ function App() {
       </header>
 
       <main className="container mx-auto px-4 py-8 flex-1">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Left Panel - Upload and File List */}
-          <div className="lg:col-span-2 space-y-5">
-            <FileUpload onFilesSelected={handleFilesSelected} />
-            
-            {files.length > 0 && (
-              <FileList
-                files={files}
-                selectedIndex={selectedFileIndex}
-                onSelect={setSelectedFileIndex}
-                onRemove={handleRemoveFile}
-              />
-            )}
+        {files.length === 0 ? (
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="w-full max-w-lg">
+              <FileUpload onFilesSelected={handleFilesSelected} />
+            </div>
           </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            {/* Left Panel - Upload and File List */}
+            <div className="lg:col-span-2 space-y-5">
+              <FileUpload onFilesSelected={handleFilesSelected} />
+
+              {files.length > 0 && (
+                <FileList
+                  files={files}
+                  selectedIndex={selectedFileIndex}
+                  onSelect={setSelectedFileIndex}
+                  onRemove={handleRemoveFile}
+                />
+              )}
+            </div>
 
           {/* Right Panel - Preview and Actions */}
-          <div className="lg:col-span-3">
-            {selectedFile?.result ? (
-              <div className="space-y-5">
-                <ActionButtons
-                  markdown={selectedFile.result.markdown}
-                  filename={selectedFile.file.name}
-                />
-                <MarkdownPreview markdown={selectedFile.result.markdown} />
-              </div>
-            ) : selectedFile?.loading ? (
-              <div className="h-full min-h-[400px] flex items-center justify-center">
-                <div className="text-center p-8 rounded-2xl bg-card border shadow-sm">
-                  <div className="relative w-16 h-16 mx-auto mb-4">
-                    <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
-                    <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-                  </div>
-                  <p className="text-muted-foreground font-medium">Converting document...</p>
-                  <p className="text-sm text-muted-foreground/70 mt-1">{selectedFile.file.name}</p>
+          {files.length > 0 && selectedFileIndex !== null ? (
+            <div className="lg:col-span-3">
+              {selectedFile?.result ? (
+                <div className="space-y-5">
+                  <ActionButtons
+                    markdown={selectedFile.result.markdown}
+                    filename={selectedFile.file.name}
+                  />
+                  <MarkdownPreview markdown={selectedFile.result.markdown} />
                 </div>
-              </div>
-            ) : selectedFile?.error ? (
-              <div className="h-full min-h-[400px] flex items-center justify-center">
-                <div className="text-center p-8 rounded-2xl bg-destructive/5 border border-destructive/20 shadow-sm max-w-sm">
-                  <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-7 h-7 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                    </svg>
+              ) : selectedFile?.loading ? (
+                <div className="h-full min-h-[400px] flex items-center justify-center">
+                  <div className="text-center p-8 rounded-2xl bg-card border-2 shadow-sm">
+                    <div className="relative w-16 h-16 mx-auto mb-4">
+                      <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+                      <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+                    </div>
+                    <p className="text-muted-foreground font-medium">Converting document...</p>
+                    <p className="text-sm text-muted-foreground/70 mt-1">{selectedFile.file.name}</p>
                   </div>
-                  <p className="font-semibold text-destructive">Conversion Failed</p>
-                  <p className="text-sm text-muted-foreground mt-2">{selectedFile.error}</p>
                 </div>
-              </div>
-            ) : (
-              <div className="h-full min-h-[400px] flex items-center justify-center">
-                <div className="text-center p-8 rounded-2xl bg-card/50 border border-dashed shadow-sm">
-                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-muted-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                    </svg>
+              ) : selectedFile?.error ? (
+                <div className="h-full min-h-[400px] flex items-center justify-center">
+                  <div className="text-center p-8 rounded-2xl bg-destructive/5 border-2 border-destructive/20 shadow-sm max-w-sm">
+                    <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-7 h-7 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                      </svg>
+                    </div>
+                    <p className="font-semibold text-destructive">Conversion Failed</p>
+                    <p className="text-sm text-muted-foreground mt-2">{selectedFile.error}</p>
                   </div>
-                  <p className="text-muted-foreground font-medium">
-                    Select a file to preview
-                  </p>
-                  <p className="text-sm text-muted-foreground/60 mt-1">
-                    Your Markdown will appear here
-                  </p>
                 </div>
-              </div>
-            )}
-          </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
-      </main>
+      )}
+    </main>
 
       <footer className="border-t bg-card/50">
-        <div className="container mx-auto px-4 py-4 text-center">
-          <p className="text-sm text-muted-foreground">
-            Browser-based version of{' '}
-            <a
-              href="https://github.com/microsoft/markitdown"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              Microsoft MarkItDown
-            </a>
-            
-          </p>
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Stan's browser-based version of{' '}
+              <a
+                href="https://github.com/microsoft/markitdown"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline font-medium"
+              >
+                Microsoft MarkItDown
+              </a>
+            </p>
+
+            <div className="flex flex-col items-end gap-2">
+              {/* Privacy indicator */}
+              <div className="relative" ref={footerPopoverRef}>
+                <button
+                  onClick={() => setShowPrivacyPopover(!showPrivacyPopover)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/5 hover:bg-primary/10 border border-primary/10 hover:border-primary/20 transition-all duration-300 group"
+                  aria-label="Privacy information"
+                >
+                  <div className="w-2 h-2 rounded-full bg-green-500 group-hover:bg-green-400 transition-colors" />
+                  <span className="text-xs text-primary/80 group-hover:text-primary">
+                     Privacy
+                   </span>
+                  <svg className="w-3 h-3 text-primary/60 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
+
+                {/* Popover */}
+                {showPrivacyPopover && (
+                  <div className="absolute bottom-full right-0 mb-3 w-72 z-50 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="p-4 rounded-lg bg-popover border border-border shadow-lg backdrop-blur-md">
+                      <div className="absolute -bottom-1.5 right-8 w-3 h-3 rotate-45 bg-popover border-r border-b border-border" />
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                          <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Fully Client-Side
+                        </h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          All conversions happen locally in your browser. Your files never leave your device.
+                        </p>
+                        <div className="flex items-center gap-1.5 pt-1">
+                          <svg className="w-3 h-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+                          </svg>
+                          <span className="text-xs text-muted-foreground">Works offline</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+
+              {/* GitHub link */}
+              <a
+                href="https://github.com/stansz/sz_markitdown"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/5 hover:bg-primary/10 border border-primary/10 hover:border-primary/20 transition-all duration-300 group"
+              >
+                <svg className="w-6 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">GitHub</span>
+              </a>
+            </div>
+          </div>
         </div>
       </footer>
     </div>

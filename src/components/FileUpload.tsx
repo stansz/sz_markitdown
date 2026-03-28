@@ -56,7 +56,7 @@ export function FileUpload({ onFilesSelected }: FileUploadProps) {
       <input
         type="file"
         multiple
-        accept=".pdf,.docx,.xlsx,.xls,.pptx,.html,.htm"
+        accept=".pdf,.docx,.xlsx,.xls,.pptx,.html,.htm,.msg"
         onChange={handleFileInput}
         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
       />
@@ -92,7 +92,7 @@ export function FileUpload({ onFilesSelected }: FileUploadProps) {
         </div>
 
         <div className="flex flex-wrap justify-center gap-1.5">
-          {['PDF', 'DOCX', 'XLSX', 'PPTX', 'HTML'].map(format => (
+          {['PDF', 'DOCX', 'XLSX', 'PPTX', 'HTML', 'MSG'].map(format => (
             <span
               key={format}
               className="px-2.5 py-1 text-xs font-medium rounded-full bg-muted/50 text-muted-foreground/70 border border-border/30 group-hover:border-primary/20 group-hover:bg-muted/70 transition-colors"
