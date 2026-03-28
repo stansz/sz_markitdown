@@ -15,6 +15,7 @@ const EXTENSION_TO_MIME: Record<string, string> = {
   '.csv': 'text/csv',
   '.json': 'application/json',
   '.xml': 'application/xml',
+  '.msg': 'application/vnd.ms-outlook',
 };
 
 /**

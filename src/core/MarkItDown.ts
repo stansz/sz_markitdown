@@ -16,6 +16,7 @@ import { DocxConverter } from '../converters/DocxConverter';
 import { PdfConverter } from '../converters/PdfConverter';
 import { XlsxConverter } from '../converters/XlsxConverter';
 import { PptxConverter } from '../converters/PptxConverter';
+import { OutlookMsgConverter } from '../converters/OutlookMsgConverter';
 import { detectFileType } from '../utils/fileDetection';
 
 /**
@@ -47,6 +48,7 @@ export class MarkItDown {
     this.registerConverter(new XlsxConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
     this.registerConverter(new PdfConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
     this.registerConverter(new DocxConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
+    this.registerConverter(new OutlookMsgConverter(), PRIORITY_SPECIFIC_FILE_FORMAT);
     this.registerConverter(new HtmlConverter(), PRIORITY_GENERIC_FILE_FORMAT);
 
     this.builtinsEnabled = true;

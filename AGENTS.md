@@ -2,7 +2,7 @@
 
 ## Brief
 
-**MarkItDown Browser** is a client-side document conversion tool that transforms various document formats (PDF, DOCX, HTML, PPTX, XLSX) into clean Markdown. The application runs entirely in the browser using React, TypeScript, and Vite, with no server-side processing required.
+**MarkItDown Browser** is a client-side document conversion tool that transforms various document formats (PDF, DOCX, HTML, PPTX, XLSX, MSG) into clean Markdown. The application runs entirely in the browser using React, TypeScript, and Vite, with no server-side processing required.
 
 **Core Requirements:**
 - Convert multiple document formats to Markdown
@@ -51,6 +51,11 @@ MarkItDown Browser exists to provide a simple, privacy-focused tool for converti
 - Maintaining code quality and TypeScript type safety
 
 **Recent Changes:**
+- **Added Outlook .msg converter** (2025-03-28): Implemented `OutlookMsgConverter` using `@kenjiuno/msgreader` library to convert Outlook message files to Markdown.
+  - Created `src/converters/OutlookMsgConverter.ts`
+  - Added `.msg` MIME type mapping in `fileDetection.ts`
+  - Registered converter in `MarkItDown.ts`
+  - Added `vite-plugin-node-polyfills` to handle Node.js core module dependencies in browser
 - **Fixed PDF.js worker loading** (2025-03-25): Changed from CDN-based worker to locally bundled worker using Vite's worker import. This resolves CORS/network errors when converting PDF files.
   - Modified `src/converters/PdfConverter.ts` to import `pdfjs-dist/build/pdf.worker.mjs?worker&url`
   - Set `GlobalWorkerOptions.workerSrc` to the bundled worker URL
@@ -83,6 +88,7 @@ src/
 ├── converters/         # Document format converters
 │   ├── DocxConverter.ts    # DOCX → Markdown (mammoth.js)
 │   ├── HtmlConverter.ts    # HTML → Markdown (marked.js)
+│   ├── OutlookMsgConverter.ts # MSG → Markdown (@kenjiuno/msgreader)
 │   ├── PdfConverter.ts     # PDF → Markdown (pdf.js)
 │   ├── PptxConverter.ts    # PPTX → Markdown (pptx2json)
 │   └── XlsxConverter.ts    # XLSX → Markdown (xlsx)
@@ -164,3 +170,5 @@ npm run preview  # Preview production build
 - PDF.js worker loading: Use local bundled worker instead of CDN to avoid CORS errors
   - Solution: `import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?worker&url'`
   - Set `pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl`
+- Node.js core modules in browser: Some npm packages require Node.js built-in modules (Buffer, process, stream, etc.) which aren't available in browsers
+  - Solution: Use `vite-plugin-node-polyfills` to automatically provide polyfills for these modules
