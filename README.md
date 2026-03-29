@@ -167,33 +167,7 @@ This project uses TypeScript strict mode and follows React best practices. Compo
 
 ## Vibe Coding
 
-This project embraces a "vibe coding" philosophy that prioritizes developer experience, rapid iteration, and clean, maintainable code. Here's what that means for this codebase:
-
-### Core Principles
-
-**Progressive Enhancement**: We start with a working minimum and enhance iteratively. The application works with basic functionality first, then adds polish, error handling, and edge case support.
-
-**Developer Joy**: Code is written to be readable, debuggable and enjoyable to work with. Clear variable names, logical structure, and helpful comments make the codebase welcoming.
-
-**Fast Feedback Loops**: Vite's instant HMR (Hot Module Replacement) and TypeScript's immediate type checking provide rapid feedback during development. We embrace this by keeping components small and focused.
-
-**Pragmatic Over Perfect**: We prefer working code that can be improved over perfect code that never ships. Technical debt is tracked and addressed regularly through refactoring.
-
-**Tooling as a First-Class Citizen**: We leverage modern tooling (TypeScript, Vite, Tailwind, shadcn/ui) to reduce boilerplate and focus on unique business logic.
-
-**Client-Side First**: All processing happens in the browser. This isn't just a technical constraint—it's a philosophy that puts user privacy and performance at the forefront.
-
-### Development Practices
-
-- **Component Isolation**: Each converter is independent and can be tested in isolation
-- **Dynamic Imports**: Heavy dependencies are loaded on-demand to keep initial bundle small
-- **Error Boundaries**: Conversion errors are caught and presented clearly to users
-- **Type-Driven Development**: TypeScript types guide implementation and catch errors early
-- **Responsive by Default**: UI components work across device sizes from the start
-
-### Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+This project is primarily "vibe coded" with primarily the help of VSCodium and Roo Code.    
 
 ## License
 
