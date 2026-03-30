@@ -4,6 +4,10 @@ A browser-based, client-side document conversion tool that transforms various do
 
 [Try it out](https://szmarkitdown.netlify.app/)
 
+## Vibe Coding Disclaimer
+
+This project leverages "vibe coding" tools, primarily Roo Code extension.
+
 ## Features
 
 - **100% Client-Side**: All processing happens in your browser. No data is sent to any server.
@@ -24,9 +28,6 @@ A browser-based, client-side document conversion tool that transforms various do
 | HTML | `.html`, `.htm` | Native DOMParser + marked | 12.0.0 |
 | Outlook Email | `.msg` | @kenjiuno/msgreader | 1.2.0 |
 
-## Vibe Coding Disclaimer
-
-This project leverages "vibe coding" tools, primarily Roo Code extension.
 
 ## Browser Compatibility
 
@@ -42,7 +43,6 @@ This project leverages "vibe coding" tools, primarily Roo Code extension.
 - **Images**: Images embedded in documents are not extracted.
 - **Audio/Video**: Audio and video transcription is not supported.
 - **Memory Constraints**: File processing happens in memory and is limited by browser available memory.
-
 
 ## Getting Started
 
