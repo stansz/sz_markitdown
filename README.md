@@ -125,26 +125,9 @@ The project uses `vite-plugin-node-polyfills` to provide Node.js core module pol
 
 - **Large Files**: Very large files may cause performance issues. Consider implementing Web Workers for better performance.
 - **Complex Formatting**: Some complex document formatting may not be perfectly preserved.
-- **Images**: Images embedded in documents are not extracted (placeholder for future LLM integration).
-- **Audio/Video**: Audio and video transcription is not supported (placeholder for future LLM integration).
+- **Images**: Images embedded in documents are not extracted.
+- **Audio/Video**: Audio and video transcription is not supported.
 - **Memory Constraints**: File processing happens in memory and is limited by browser available memory.
-
-## LLM Integration (Future)
-
-The architecture includes placeholders for future LLM integration:
-
-- **Image Description**: Extract and describe images from documents
-- **Audio Transcription**: Transcribe audio content
-- **OCR**: Extract text from images using vision models
-
-To enable LLM features in the future, implement the `LLMClient` interface:
-
-```typescript
-interface LLMClient {
-  describeImage(imageData: ArrayBuffer): Promise<string>;
-  transcribeAudio(audioData: ArrayBuffer): Promise<string>;
-}
-```
 
 ## Development
 
@@ -156,18 +139,9 @@ npm run build    # Production build
 npm run preview  # Preview production build locally
 ```
 
-### Code Style
-
-This project uses TypeScript strict mode and follows React best practices. Components are built with a focus on:
-
-- Type safety
-- Performance optimization
-- Accessibility
-- Responsive design
-
 ## Vibe Coding
 
-This project is primarily "vibe coded" with primarily the help of VSCodium and Roo Code.    
+This project is primarily "vibe coded" with the help of VSCodium and Roo Code.
 
 ## License
 
