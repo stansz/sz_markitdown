@@ -2,7 +2,7 @@
 
 A browser-based, client-side document conversion tool that transforms various document formats (PDF, DOCX, HTML, PPTX, XLSX, MSG) into clean Markdown. The application runs entirely in the browser using React, TypeScript, and Vite, with no server-side processing required.
 
-[Try it out](https://szmarkitdown.netlify.appp/)
+[Try it out](https://szmarkitdown.netlify.app/)
 
 ## Features
 
