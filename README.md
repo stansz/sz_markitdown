@@ -2,7 +2,7 @@
 
 A browser-based, client-side document conversion tool that transforms various document formats (PDF, DOCX, HTML, PPTX, XLSX, MSG) into clean Markdown. The application runs entirely in the browser using React, TypeScript, and Vite, with no server-side processing required.
 
-Try it out here: https://szmarkitdown.netlify.app/
+[Try it out](https://szmarkitdown.netlify.appp/)
 
 ## Features
 
@@ -24,6 +24,26 @@ Try it out here: https://szmarkitdown.netlify.app/
 | HTML | `.html`, `.htm` | Native DOMParser + marked | 12.0.0 |
 | Outlook Email | `.msg` | @kenjiuno/msgreader | 1.2.0 |
 
+## Vibe Coding Disclaimer
+
+This project leverages "vibe coding" tools, primarily Roo Code extension.
+
+## Browser Compatibility
+
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
+
+## Limitations
+
+- **Large Files**: Very large files may cause performance issues. Consider implementing Web Workers for better performance.
+- **Complex Formatting**: Some complex document formatting may not be perfectly preserved.
+- **Images**: Images embedded in documents are not extracted.
+- **Audio/Video**: Audio and video transcription is not supported.
+- **Memory Constraints**: File processing happens in memory and is limited by browser available memory.
+
+
 ## Getting Started
 
 ### Prerequisites
@@ -35,7 +55,7 @@ Try it out here: https://szmarkitdown.netlify.app/
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/markitdown-browser.git
+git clone https://github.com/stansz/markitdown-browser.git
 cd markitdown-browser
 
 # Install dependencies
@@ -80,22 +100,6 @@ src/
 └── App.tsx                    # Main application component
 ```
 
-### Converter Priority System
-
-Converters are registered with priorities (lower = higher priority):
-
-- `0.0`: Specific file formats (DOCX, PDF, XLSX, PPTX, MSG)
-- `10.0`: Generic formats (HTML, plain text)
-
-When converting a file, converters are tried in priority order until one succeeds.
-
-### Design Patterns
-
-- **Strategy Pattern**: Each converter implements the `DocumentConverter` interface
-- **Factory Pattern**: `MarkItDown` class selects appropriate converter based on file type
-- **Separation of Concerns**: UI components separate from conversion logic
-- **Lazy Loading**: Converters are dynamically imported when needed to reduce initial bundle size
-
 ## Technology Stack
 
 - **Build Tool**: Vite 5
@@ -114,34 +118,6 @@ When converting a file, converters are tried in priority order until one succeed
 
 The project uses `vite-plugin-node-polyfills` to provide Node.js core module polyfills (Buffer, process, stream, etc.) for packages that depend on them, ensuring browser compatibility.
 
-## Browser Compatibility
-
-- Chrome 90+
-- Firefox 88+
-- Safari 14+
-- Edge 90+
-
-## Limitations
-
-- **Large Files**: Very large files may cause performance issues. Consider implementing Web Workers for better performance.
-- **Complex Formatting**: Some complex document formatting may not be perfectly preserved.
-- **Images**: Images embedded in documents are not extracted.
-- **Audio/Video**: Audio and video transcription is not supported.
-- **Memory Constraints**: File processing happens in memory and is limited by browser available memory.
-
-## Development
-
-### Scripts
-
-```bash
-npm run dev      # Start development server with HMR
-npm run build    # Production build
-npm run preview  # Preview production build locally
-```
-
-## Vibe Coding
-
-This project is primarily "vibe coded" with the help of VSCodium and Roo Code.
 
 ## License
 
@@ -182,3 +158,5 @@ SOFTWARE.
 - [@kenjiuno/msgreader](https://github.com/kenjiuno/msgreader) - Outlook .msg file parser
 - [shadcn/ui](https://ui.shadcn.com/) - Beautiful, accessible UI components
 - [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
+- [VSCodium](https://github.com/VSCodium/vscodium) - Free/Libre Open Source Software Binaries of Visual Studio Code
+- [Roo Code](https://github.com/RooCodeInc/Roo-Code) - Vibe Coding extension
