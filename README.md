@@ -4,7 +4,7 @@ A browser-based, client-side document conversion tool that transforms various do
 
 The application runs entirely in the browser using React, TypeScript, and Vite, with no server-side processing required.
 
-[Try it out](https://szmarkitdown.netlify.app/)
+**[Try it out](https://md.ogsapps.cc/)**
 
 ## Vibe Coding Disclaimer
 
@@ -17,7 +17,7 @@ This project leverages "vibe coding" tools, primarily Roo Code extension.
 - **Drag & Drop**: Simple drag-and-drop interface for uploading files.
 - **Markdown Preview**: Real-time preview of converted Markdown.
 - **Copy & Download**: Easily copy to clipboard or download as `.md` file.
-- **Privacy-Focused**: Works offline once loaded. Your documents never leave your computer.
+- **Privacy-Focused**: Your documents never leave your computer. Conversion happens entirely in-browser, and the app makes no network requests after it loads.
 
 ## Supported Formats
 
@@ -33,10 +33,9 @@ This project leverages "vibe coding" tools, primarily Roo Code extension.
 
 ## Browser Compatibility
 
-- Chrome 90+
-- Firefox 88+
-- Safari 14+
-- Edge 90+
+The production build targets `esnext` (see `vite.config.ts`) and is **not downlevelled**, so it needs a current evergreen browser. There is no verified minimum version — the previous "Chrome 90+ / Safari 14+" list here was a claim nobody had tested against the actual build output.
+
+If support for older browsers is ever genuinely needed, lower `build.target` in `vite.config.ts` and add a `browserslist` config; the trade-off is a larger bundle.
 
 ## Limitations
 
@@ -50,15 +49,15 @@ This project leverages "vibe coding" tools, primarily Roo Code extension.
 
 ### Prerequisites
 
-- Node.js 18+
-- npm or yarn
+- Node.js 22+ (pinned in `.nvmrc`; CI uses the same version)
+- npm
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/stansz/markitdown-browser.git
-cd markitdown-browser
+git clone https://github.com/stansz/sz_markitdown.git
+cd sz_markitdown
 
 # Install dependencies
 npm install
@@ -74,6 +73,25 @@ npm run build
 ```
 
 The built files will be in the `dist` directory.
+
+### Deployment
+
+Deployed to Cloudflare Workers as a static-assets Worker, served at
+[md.ogsapps.cc](https://md.ogsapps.cc/).
+
+- Configuration lives in `wrangler.jsonc` (version-controlled; `assets.directory` points at `./dist`).
+- The Worker is connected to this repository, so **pushing to `main` builds and deploys automatically**.
+- To deploy manually: `npm run build && npx wrangler deploy`
+
+### Checks
+
+CI runs on every pull request and on pushes to `main`:
+
+```bash
+npm ci
+npm run typecheck   # tsc -b
+npm run build
+```
 
 ## Architecture
 
@@ -104,7 +122,7 @@ src/
 
 ## Technology Stack
 
-- **Build Tool**: Vite 5
+- **Build Tool**: Vite 6
 - **Framework**: React 18 + TypeScript 5
 - **Styling**: Tailwind CSS 3.4 + shadcn/ui components
 - **Icons**: lucide-react
