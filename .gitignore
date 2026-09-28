@@ -42,6 +42,12 @@ lerna-debug.log*
 .DS_Store
 Thumbs.db
 
+# Wrangler / Cloudflare
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
+
 # TypeScript emit for the node-side config project (see tsconfig.node.json).
 # These are compiled artifacts of vite.config.ts — never commit them: Vite
 # resolves vite.config.js BEFORE vite.config.ts, so a committed .js silently
