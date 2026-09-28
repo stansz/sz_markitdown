@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref instead of queueing them.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Typecheck & build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Report bundle size
+        run: |
+          {
+            echo "### Bundle size"
+            echo
+            echo "\`du -sh dist\`: $(du -sh dist | cut -f1)"
+            echo
+            echo "\`\`\`"
+            ls -l dist/assets | awk 'NR>1 { printf "%9d  %s\n", $5, $9 }' | sort -rn | head -15
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
