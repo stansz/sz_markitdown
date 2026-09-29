@@ -25,7 +25,7 @@ MarkItDown Browser exists to provide a simple, privacy-focused tool for converti
 
 **Problems Solved:**
 - Eliminates privacy concerns of uploading sensitive documents to cloud services
-- Works offline once loaded
+- No network requests after load — conversion is entirely local. (A reload while offline still fails: there is no service worker.)
 - Provides instant conversion without network latency
 - Supports multiple common document formats in one interface
 
@@ -46,11 +46,11 @@ MarkItDown Browser exists to provide a simple, privacy-focused tool for converti
 ## Context
 
 **Current Work Focus:**
-- Fixing PDF conversion issues related to PDF.js worker loading
-- Ensuring all converters work reliably in browser environment
-- Maintaining code quality and TypeScript type safety
+- Keeping the build reproducible: config resolution, CI and deployment are version-controlled as of 2026-09-28
+- Test coverage — there is none yet
 
 **Recent Changes:**
+- **Build, CI and deploy hygiene** (2026-09-28, PRs #9–#14): removed the committed `vite.config.js` / `vite.config.d.ts` build artifacts that were shadowing `vite.config.ts` — Vite resolves `vite.config.js` *before* `vite.config.ts`, so edits to the `.ts` had been silently doing nothing; added CI running `npm ci` → `npm run typecheck` → `npm run build` with Node pinned via `.nvmrc`; committed `wrangler.jsonc` so Cloudflare Workers deploys read the repo instead of dashboard-only settings; removed the mount-time `localStorage.clear()` / IndexedDB wipe / service-worker unregistration effect; corrected several wrong README facts. All six PRs are squash-merged with descriptive bodies — see `git log`.
 - **Improved Markdown info tooltip UX** (2025-03-28): Moved "what is markdown?" prompt from footer to appear when clicking "Markdown" text in header subheading.
   - Removed "About Markdown" button from footer
   - Made "Markdown" text clickable with hyperlink styling in header
@@ -70,10 +70,11 @@ MarkItDown Browser exists to provide a simple, privacy-focused tool for converti
   - Vite config already had manual chunking for the worker
 
 **Next Steps:**
-- Test PDF conversion with various PDF files to ensure robustness
-- Monitor for any other converter-specific issues
-- Consider adding more document format support if needed
-- Potentially add conversion progress indicators for large files
+- **Add tests.** Nothing is covered today. Vitest plus one fixture per format — a sample file and its expected markdown. Start with DOCX, HTML and XLSX; they fail quietly.
+- **Add ESLint.** No config or dependencies yet. Deliberately left out of the first CI PR so CI started green rather than red.
+- **Trim dead polyfills.** `vite.config.ts` lists `path` and `fs` in `nodePolyfills.include`; nothing imports either, and neither appears in the built bundle.
+- **Issue #7 (AI OCR pipeline).** `src/utils/llmClient.ts` is a placeholder that throws. Real LLM calls need a server-side proxy — a Cloudflare Worker script — because an API key in the browser bundle is public. Adding that script is also when `@cloudflare/vite-plugin` becomes worth adopting.
+- Consider conversion progress indicators for large files (carried over).
 
 ---
 
@@ -98,7 +99,7 @@ src/
 │   ├── HtmlConverter.ts    # HTML → Markdown (marked.js)
 │   ├── OutlookMsgConverter.ts # MSG → Markdown (@kenjiuno/msgreader)
 │   ├── PdfConverter.ts     # PDF → Markdown (pdf.js)
-│   ├── PptxConverter.ts    # PPTX → Markdown (pptx2json)
+│   ├── PptxConverter.ts    # PPTX → Markdown (jszip)
 │   └── XlsxConverter.ts    # XLSX → Markdown (xlsx)
 ├── core/               # Core application logic
 │   ├── MarkItDown.ts    # Main orchestrator
@@ -139,22 +140,24 @@ src/
 
 **Technologies Used:**
 - **Frontend**: React 18, TypeScript 5
-- **Build Tool**: Vite 5
+- **Build Tool**: Vite 6
 - **Styling**: Tailwind CSS 3.4, shadcn/ui components
 - **Converters**:
   - `pdfjs-dist` (v4.4.168) for PDF text extraction
   - `mammoth` (v1.8.0) for DOCX conversion
   - `marked` (v12.0.0) for HTML to Markdown
   - `xlsx` (v0.20.3) for spreadsheet conversion
-  - `jszip` (v3.10.1) for archive handling
+  - `jszip` (v3.10.1) for PPTX and archive handling
+  - `@kenjiuno/msgreader` (v1.2.0) for Outlook .msg files
 - **Icons**: lucide-react
 
 **Development Setup:**
 ```bash
 npm install
-npm run dev      # Start development server
-npm run build    # Production build
-npm run preview  # Preview production build
+npm run dev        # Start development server
+npm run typecheck  # tsc -b
+npm run build      # Production build
+npm run preview    # Preview production build
 ```
 
 **Technical Constraints:**
@@ -170,9 +173,14 @@ npm run preview  # Preview production build
 
 **Tool Usage Patterns:**
 - Vite for HMR and optimized builds
-- TypeScript strict mode enabled
-- ESLint/Prettier (if configured - check project setup)
-- Git for version control
+- TypeScript strict mode enabled (`noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`)
+- No ESLint/Prettier configured yet — see Next Steps
+- Git for version control; `main` is protected and requires a pull request (no direct pushes)
+
+**CI and Deployment:**
+- **CI**: `.github/workflows/ci.yml` runs `npm ci` → `npm run typecheck` → `npm run build` on every pull request and every push to `main`, with a bundle-size report in the job summary
+- **Deploy**: Cloudflare Workers static assets. Configuration lives in `wrangler.jsonc` (`assets.directory: ./dist`). The Worker is Git-connected, so a push to `main` builds and deploys automatically. Manual deploy: `npm run build && npx wrangler deploy`
+- **Live**: https://md.ogsapps.cc/
 
 **Known Issues & Solutions:**
 - PDF.js worker loading: Use local bundled worker instead of CDN to avoid CORS errors
