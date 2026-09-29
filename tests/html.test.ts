@@ -80,8 +80,6 @@ describe('HtmlConverter.convert', () => {
   });
 
   it('converts inline emphasis, links and code', async () => {
-    // Deliberately NOT wrapped in <p> — see the known-limitation test below
-    // for why paragraph-wrapped inline markup is lost.
     const html = `<div><strong>bold</strong> <em>italic</em> <a href="https://example.com">Example</a> <code>inlinecode</code></div>`;
     const { markdown } = await converter.convert(bytes(html), info);
     expect(markdown).toContain('**bold**');
@@ -90,15 +88,51 @@ describe('HtmlConverter.convert', () => {
     expect(markdown).toContain('`inlinecode`');
   });
 
-  it.fails('keeps inline markup nested inside a paragraph (known limitation)', async () => {
-    // BUG: the 'p' branch renders getTextContent(el), which flattens every
-    // child, so bold/italic/links/inline-code inside a <p> are dropped.
-    // This test is marked .fails so it turns red the moment it is fixed —
-    // flip it to a normal `it` when that happens.
+  it('keeps inline markup nested inside a paragraph', async () => {
+    // Regression: the 'p' branch used to render getTextContent(el), which
+    // flattens every child — silently dropping all of the below.
     const { markdown } = await converter.convert(bytes(HTML), info);
     expect(markdown).toContain('**bold**');
     expect(markdown).toContain('*italic*');
     expect(markdown).toContain('[Example](https://example.com)');
+  });
+
+  it('keeps inline markup inside headings, quotes, list items and table cells', async () => {
+    const html = [
+      '<h2>A <strong>bold</strong> heading</h2>',
+      '<blockquote>Quoted <em>emphasis</em></blockquote>',
+      '<ul><li>Item with <strong>bold</strong></li></ul>',
+      '<table><tr><th>Header</th></tr>',
+      '<tr><td>Cell with <em>italics</em></td></tr></table>',
+    ].join('');
+
+    const { markdown } = await converter.convert(bytes(html), info);
+
+    expect(markdown).toContain('## A **bold** heading');
+    expect(markdown).toContain('> Quoted *emphasis*');
+    expect(markdown).toContain('- Item with **bold**');
+    expect(markdown).toContain('| Cell with *italics* |');
+  });
+
+  it('indents nested list items beneath their parent', async () => {
+    const html = [
+      '<ul><li>Parent<ul><li>Child</li></ul></li><li>Second</li></ul>',
+      '<ol><li>One<ol><li>Sub</li></ol></li></ol>',
+    ].join('');
+
+    const { markdown } = await converter.convert(bytes(html), info);
+
+    expect(markdown).toContain('- Parent');
+    expect(markdown).toContain('  - Child');
+    expect(markdown).toContain('- Second');
+    expect(markdown).toContain('1. One');
+    expect(markdown).toContain('  1. Sub');
+  });
+
+  it('treats span as a wrapper rather than flattening its contents', async () => {
+    const html = '<p><span>Wrapped <strong>bold</strong></span></p>';
+    const { markdown } = await converter.convert(bytes(html), info);
+    expect(markdown).toContain('Wrapped **bold**');
   });
 
   it('converts unordered and ordered lists', async () => {

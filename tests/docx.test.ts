@@ -41,22 +41,19 @@ describe('DocxConverter.convert', () => {
     expect(markdown).toContain('## Section');
   });
 
-  it.fails('keeps bold runs (known limitation)', async () => {
-    // Same root cause as the HTML case: mammoth emits <p><strong>…</strong></p>
-    // and the converter's 'p' branch flattens all children, so bold is lost.
+  it('keeps bold runs', async () => {
+    // Regression: mammoth emits a <p>-wrapped <strong> for every formatted
+    // run, and the 'p' branch used to flatten its children — so DOCX bold and
+    // italic never survived conversion at all.
     const data = await makeDocx([{ text: 'bold bit', bold: true }]);
     const { markdown } = await converter.convert(data, info);
     expect(markdown).toContain('**bold bit**');
   });
 
-  it('currently drops bold instead, because mammoth wraps runs in a paragraph', async () => {
-    // Pins today's behaviour. If this starts failing, the flattening bug was
-    // fixed: delete this test and flip the .fails above to a normal `it`.
-    const data = await makeDocx([{ text: 'bold bit', bold: true }]);
+  it('keeps italic runs', async () => {
+    const data = await makeDocx([{ text: 'italic bit', italic: true }]);
     const { markdown } = await converter.convert(data, info);
-
-    expect(markdown).toContain('bold bit');
-    expect(markdown).not.toContain('**bold bit**');
+    expect(markdown).toContain('*italic bit*');
   });
 
   it('uses the filename as the title', async () => {

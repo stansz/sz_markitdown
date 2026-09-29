@@ -61,6 +61,7 @@ export interface DocxBlock {
   /** Style id — 'Heading1'/'Heading2' map to h1/h2 via DOCX_STYLES. */
   style?: 'Heading1' | 'Heading2';
   bold?: boolean;
+  italic?: boolean;
 }
 
 export async function makeDocx(blocks: DocxBlock[]): Promise<ArrayBuffer> {
@@ -74,7 +75,10 @@ export async function makeDocx(blocks: DocxBlock[]): Promise<ArrayBuffer> {
       const style = block.style
         ? `<w:pPr><w:pStyle w:val="${block.style}"/></w:pPr>`
         : '';
-      const runProps = block.bold ? '<w:rPr><w:b/></w:rPr>' : '';
+      const runProps =
+        block.bold || block.italic
+          ? `<w:rPr>${block.bold ? '<w:b/>' : ''}${block.italic ? '<w:i/>' : ''}</w:rPr>`
+          : '';
       return `<w:p>${style}<w:r>${runProps}<w:t xml:space="preserve">${escapeXml(
         block.text
       )}</w:t></w:r></w:p>`;
